@@ -8,7 +8,8 @@ export default defineNuxtConfig({
   build: {
     transpile: ['vuetify'],
   },
-  css: ['@/assets/scss/base.scss'],
+  css: ['@/assets/scss/base.scss', 'vuetify/lib/styles/main.css',
+    '@mdi/font/css/materialdesignicons.css'],
   vite: {
     define: {
       'process.env.DEBUG': 'false',

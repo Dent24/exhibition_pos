@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 
 // 定義資料庫中 Users 表的結構
 interface UserProfile {
+  id: number
   nickname: string
   is_owner: boolean
   is_seller: boolean
@@ -35,7 +36,7 @@ export const useMainStore = defineStore('main', {
       try {
         const { data, error } = await supabase
           .from('Users')
-          .select("nickname, is_owner, is_seller")
+          .select("id, nickname, is_owner, is_seller")
           .eq("Uid", user.value.sub)
           .single()
 
