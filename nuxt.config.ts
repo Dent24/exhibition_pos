@@ -1,4 +1,9 @@
 export default defineNuxtConfig({
+  ssr: false,
+  app: {
+    baseURL: '/exhibition_pos/', 
+    buildAssetsDir: 'assets', // 避免 GitHub Pages 阻擋底線開頭的資料夾
+  },
   modules: ['@pinia/nuxt', '@nuxtjs/supabase'],
   build: {
     transpile: ['vuetify'],
