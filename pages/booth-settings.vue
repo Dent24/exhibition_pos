@@ -2,7 +2,7 @@
   <v-container>
     <v-row class="mb-4" align="center">
       <v-col>
-        <h1 class="text-h4">參展攤位設定</h1>
+        <h1 class="text-h4 text-primary">參展攤位設定</h1>
       </v-col>
       <v-col class="text-right">
         <v-btn
@@ -174,17 +174,14 @@ const availableExhibitions = computed(() => {
 const fetchMyBooths = async () => {
   loading.value = true;
   try {
-    const { data, error } = await supabase
-      .from("Exhibition_Booths")
-      .select(
-        `
+    const { data, error } = await supabase.from("Exhibition_Booths").select(
+      `
         id,
         exhibition_id,
         booth_number,
         exhibitions:exhibition_id ( id, name, start_date, end_date, location )
       `
-      )
-      .eq("owner_id", userStore.profile?.id);
+    );
 
     if (error) throw error;
     booths.value = data as any;

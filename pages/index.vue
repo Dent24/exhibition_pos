@@ -13,7 +13,7 @@
       <v-col v-if="mainStore.profile?.is_owner" cols="12">
         <h2 class="text-h5 mb-4 text-secondary">攤主管理區</h2>
         <v-row>
-          <v-col cols="12" md="6">
+          <v-col cols="12" md="4">
             <v-card hover @click="router.push('/booth-settings')">
               <v-card-item prepend-icon="mdi-store-cog">
                 <v-card-title>設定參展攤位</v-card-title>
@@ -21,11 +21,19 @@
               </v-card-item>
             </v-card>
           </v-col>
-          <v-col cols="12" md="6">
+          <v-col cols="12" md="4">
             <v-card hover @click="router.push('/booth-products')">
               <v-card-item prepend-icon="mdi-package-variant-closed">
                 <v-card-title>設定攤位商品</v-card-title>
                 <v-card-subtitle>管理攤位內展示的商品清單</v-card-subtitle>
+              </v-card-item>
+            </v-card>
+          </v-col>
+          <v-col cols="12" md="4">
+            <v-card hover @click="router.push('/sales-report')">
+              <v-card-item prepend-icon="mdi-finance">
+                <v-card-title>銷售紀錄查詢</v-card-title>
+                <v-card-subtitle>查看各場展覽的營收與明細</v-card-subtitle>
               </v-card-item>
             </v-card>
           </v-col>
@@ -35,7 +43,7 @@
       <v-col v-if="mainStore.profile?.is_seller" cols="12">
         <h2 class="text-h5 mb-4 text-secondary">賣家管理區</h2>
         <v-row>
-          <v-col cols="12" md="6">
+          <v-col cols="12" md="4">
             <v-card hover @click="router.push('/product-settings')">
               <v-card-item prepend-icon="mdi-tag-plus">
                 <v-card-title>設定商品</v-card-title>
@@ -43,11 +51,19 @@
               </v-card-item>
             </v-card>
           </v-col>
-          <v-col cols="12" md="6">
+          <v-col cols="12" md="4">
             <v-card hover @click="router.push('/seller-permissions')">
               <v-card-item prepend-icon="mdi-account-check">
                 <v-card-title>設定可售攤主</v-card-title>
                 <v-card-subtitle>授權特定攤主販售您的商品</v-card-subtitle>
+              </v-card-item>
+            </v-card>
+          </v-col>
+          <v-col cols="12" md="4">
+            <v-card hover @click="router.push('/product-sales-report')">
+              <v-card-item prepend-icon="mdi-chart-line">
+                <v-card-title>商品銷售統計</v-card-title>
+                <v-card-subtitle>查看商品在各展覽的銷售表現</v-card-subtitle>
               </v-card-item>
             </v-card>
           </v-col>

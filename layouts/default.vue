@@ -1,7 +1,9 @@
 <template>
   <v-app>
     <v-app-bar color="primary" elevation="2">
-      <v-app-bar-title @click="router.push('/')">管理系統</v-app-bar-title>
+      <v-app-bar-title class="cursor-pointer" @click="router.push('/')"
+        >管理系統</v-app-bar-title
+      >
       <v-spacer></v-spacer>
 
       <v-skeleton-loader
