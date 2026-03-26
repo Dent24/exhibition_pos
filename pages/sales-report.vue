@@ -16,65 +16,84 @@
       </v-col>
     </v-row>
 
-    <v-expansion-panels multiple variant="inset">
-      <v-expansion-panel
-        v-for="booth in boothsReport"
-        :key="booth.id"
-        class="mb-4 border"
-      >
+    <v-expansion-panels multiple>
+      <v-expansion-panel v-for="booth in boothsReport" :key="booth.id">
         <v-expansion-panel-title>
-          <v-row no-gutters align="center">
-            <v-col cols="6">
-              <span class="text-h6 font-weight-bold">{{
-                booth.exhibitions.name
-              }}</span>
-              <span class="text-grey ml-2"
-                >(攤位: {{ booth.booth_number }})</span
+          <div class="d-flex justify-space-between w-100 align-center pr-4">
+            <div>
+              <v-icon icon="mdi-map-marker-outline" class="mr-2"></v-icon>
+              <strong>{{ booth.exhibitions.name }}</strong>
+              <v-chip size="x-small" class="ml-2"
+                >攤位: {{ booth.booth_number }}</v-chip
               >
-            </v-col>
-            <v-col cols="6" class="text-right pr-4">
-              <v-chip color="success" variant="flat" size="small">
-                總營收: ${{
-                  booth.processedDetails.reduce(
-                    (a, b) => a + b.total_revenue,
-                    0
-                  )
-                }}
-              </v-chip>
-            </v-col>
-          </v-row>
+            </div>
+            <span class="text-success font-weight-bold"
+              >營收: ${{ booth.total_booth_revenue }}</span
+            >
+          </div>
         </v-expansion-panel-title>
 
         <v-expansion-panel-text>
           <v-data-table
             :headers="[
+              { title: '', key: 'data-table-expand' },
               { title: '商品名稱', key: 'product.name' },
-              { title: '展覽售價', key: 'event_price', align: 'center' },
-              { title: '銷售數量', key: 'total_quantity', align: 'center' },
-              { title: '小計營收', key: 'total_revenue', align: 'center' },
-              { title: '管理', key: 'actions', align: 'end', sortable: false },
+              { title: '單價', key: 'event_price' },
+              { title: '累計銷量', key: 'total_qty' },
+              { title: '小計', key: 'subtotal' },
             ]"
-            :items="booth.processedDetails"
-            density="comfortable"
+            :items="
+              booth.details.map((d) => ({
+                ...d,
+                total_qty: d.sales.reduce((s, r) => s + r.quantity, 0),
+                subtotal:
+                  d.sales.reduce((s, r) => s + r.quantity, 0) * d.event_price,
+              }))
+            "
+            show-expand
+            density="compact"
           >
-            <template v-slot:item.event_price="{ item }">
-              ${{ item.event_price }}
-            </template>
+            <template v-slot:expanded-row="{ columns, item }">
+              <tr>
+                <td :colspan="columns.length" class="bg-grey-lighten-4 pa-4">
+                  <div class="text-subtitle-2 mb-2">
+                    <v-icon icon="mdi-history" size="small"></v-icon>
+                    販售紀錄明細
+                  </div>
 
-            <template v-slot:item.total_revenue="{ item }">
-              <span class="text-success font-weight-bold"
-                >${{ item.total_revenue }}</span
-              >
-            </template>
-
-            <template v-slot:item.actions="{ item }">
-              <v-btn
-                icon="mdi-trash-can-outline"
-                variant="text"
-                color="error"
-                size="small"
-                @click="deleteSaleRecord(item.id)"
-              ></v-btn>
+                  <v-table density="compact" class="elevation-1 rounded">
+                    <thead>
+                      <tr>
+                        <th>銷售時間</th>
+                        <th>數量</th>
+                        <th>操作</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr v-for="record in item.sales" :key="record.id">
+                        <td>
+                          {{ new Date(record.created_at).toLocaleString() }}
+                        </td>
+                        <td>{{ record.quantity }}</td>
+                        <td>
+                          <v-btn
+                            icon="mdi-delete"
+                            variant="text"
+                            color="error"
+                            size="x-small"
+                            @click="deleteSingleRecord(record.id)"
+                          ></v-btn>
+                        </td>
+                      </tr>
+                      <tr v-if="item.sales.length === 0">
+                        <td colspan="3" class="text-center text-grey">
+                          目前尚無販售紀錄
+                        </td>
+                      </tr>
+                    </tbody>
+                  </v-table>
+                </td>
+              </tr>
             </template>
           </v-data-table>
         </v-expansion-panel-text>
@@ -167,60 +186,52 @@ const selectedBoothIdInDialog = ref<number | null>(null);
 const productsInSelectedBooth = computed(() => {
   if (!selectedBoothIdInDialog.value) return [];
 
-  // 從 boothsReport 中找到目前選中的那個攤位
+  // 1. 在 boothsReport 中尋找選中的攤位 ID
   const targetBooth = boothsReport.value.find(
     (b) => b.id === selectedBoothIdInDialog.value
   );
 
-  // 回傳該攤位已經在 Exhibition_Product_Details 設定好的商品
-  return targetBooth ? targetBooth.processedDetails : [];
+  // 2. 關鍵：請檢查你的資料結構。
+  // 如果你在 fetch 完後有處理過資料，請確認 details 是否存在
+  if (!targetBooth || !targetBooth.details) {
+    console.warn("找不到該攤位的商品細節", targetBooth);
+    return [];
+  }
+
+  // 回傳該攤位的商品詳情 (Exhibition_Product_Details)
+  return targetBooth.details;
 });
 
 // 1. 取得所有銷售報表資料
 const fetchSalesReport = async () => {
-  if (!userStore.profile?.id) return;
   loading.value = true;
-
-  try {
-    // 這裡進行多層嵌套查詢：攤位 -> 展覽 -> 商品詳情 -> 銷售紀錄
-    const { data, error } = await supabase
-      .from("Exhibition_Booths")
-      .select(
-        `
-        id, booth_number,
-        exhibitions:exhibition_id ( name ),
-        details:Exhibition_Product_Details (
-          id, event_price,
-          product:product_id ( name ),
-          sales:Sales_Records ( id, quantity )
-        )
+  const { data, error } = await supabase
+    .from("Exhibition_Booths")
+    .select(
       `
+      id, booth_number,
+      exhibitions:exhibition_id ( name ),
+      details:Exhibition_Product_Details (
+        id, event_price,
+        product:product_id ( name ),
+        sales:Sales_Records ( id, quantity, created_at )
       )
-      .eq("owner_id", userStore.profile.id);
+    `
+    )
+    .eq("owner_id", userStore.profile.id);
 
-    if (error) throw error;
-
-    // 整理資料：計算每個商品項目的總銷額與銷量
-    boothsReport.value = (data || []).map((booth) => ({
+  if (!error) {
+    // 預處理資料，計算每一層的小計
+    boothsReport.value = data.map((booth) => ({
       ...booth,
-      processedDetails: booth.details.map((d: any) => {
-        const totalQty = d.sales.reduce(
-          (sum: number, s: any) => sum + s.quantity,
-          0
-        );
-        return {
-          ...d,
-          total_quantity: totalQty,
-          total_revenue: totalQty * d.event_price,
-          sales_list: d.sales, // 保留原始清單供刪除使用（若需要細項管理）
-        };
-      }),
+      total_booth_revenue: booth.details.reduce(
+        (sum, d) =>
+          sum + d.sales.reduce((s, r) => s + r.quantity, 0) * d.event_price,
+        0
+      ),
     }));
-  } catch (err: any) {
-    alert("讀取報表失敗: " + err.message);
-  } finally {
-    loading.value = false;
   }
+  loading.value = false;
 };
 
 // 2. 新增銷售紀錄
@@ -243,19 +254,30 @@ const saveSale = async () => {
 };
 
 // 3. 刪除銷售紀錄 (這通常會刪除該品項在該攤位的所有紀錄，或可改為針對特定 ID)
-const deleteSaleRecord = async (detailId: number) => {
-  if (!confirm("確定要刪除此商品在該攤位的所有銷售紀錄嗎？此動作不可逆。"))
-    return;
+const deleteSingleRecord = async (recordId: number) => {
+  // 1. 二次確認，防止誤點
+  if (!confirm("確定要刪除這筆銷售紀錄嗎？此動作將會影響營收統計。")) return;
 
-  const { error } = await supabase
-    .from("Sales_Records")
-    .delete()
-    .eq("detail_id", detailId);
+  loading.value = true;
+  try {
+    // 2. 執行刪除指令
+    const { error } = await supabase
+      .from("Sales_Records")
+      .delete()
+      .eq("id", recordId);
 
-  if (!error) {
+    if (error) throw error;
+
+    // 3. 刪除成功後，重新抓取報表資料以更新畫面上的統計數字
     await fetchSalesReport();
-  } else {
-    alert("刪除失敗: " + error.message);
+
+    // 選用：加入一個簡單的成功提示（若你有使用 Snackbar）
+    // snackbar.show('紀錄已刪除', 'success');
+  } catch (err: any) {
+    console.error("刪除失敗:", err.message);
+    alert("無法刪除紀錄：" + err.message);
+  } finally {
+    loading.value = false;
   }
 };
 
