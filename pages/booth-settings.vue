@@ -2,7 +2,7 @@
   <v-container>
     <v-row class="mb-4" align="center">
       <v-col>
-        <h1 class="text-h4 text-primary">參展攤位設定</h1>
+        <h1 class="text-h4 text-primary">設定參展攤位</h1>
       </v-col>
       <v-col class="text-right">
         <v-btn

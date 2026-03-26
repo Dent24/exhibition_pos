@@ -1,6 +1,6 @@
 <template>
   <v-container>
-    <h1 class="text-h4 mb-6 text-primary">攤位商品設定</h1>
+    <h1 class="text-h4 mb-6 text-primary">設定攤位商品</h1>
 
     <v-expansion-panels multiple variant="inset">
       <v-expansion-panel

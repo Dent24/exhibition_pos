@@ -2,8 +2,7 @@
   <v-container>
     <v-row class="mb-4" align="center">
       <v-col>
-        <h1 class="text-h4 text-primary">商品授權管理</h1>
-        <p class="text-subtitle-1 text-grey">管理您的商品被哪些攤主販售</p>
+        <h1 class="text-h4 text-primary">設定可售攤主</h1>
       </v-col>
     </v-row>
 

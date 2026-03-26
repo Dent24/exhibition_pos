@@ -2,8 +2,7 @@
   <v-container>
     <v-row class="mb-4">
       <v-col>
-        <h1 class="text-h4 font-weight-bold">商品多維度分析</h1>
-        <p class="text-subtitle-1 text-grey">商品 > 展覽 > 攤位 (賣家專用)</p>
+        <h1 class="text-h4 font-weight-bold text-primary">商品銷售統計</h1>
       </v-col>
     </v-row>
 

@@ -2,8 +2,7 @@
   <v-container>
     <v-row class="mb-4" align="center">
       <v-col>
-        <h1 class="text-h4 text-primary">銷售數據報表</h1>
-        <p class="text-subtitle-1 text-grey">查看並管理各場次的銷售統計</p>
+        <h1 class="text-h4 text-primary">銷售紀錄查詢</h1>
       </v-col>
       <v-col class="text-right">
         <v-btn

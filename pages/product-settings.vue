@@ -2,7 +2,7 @@
   <v-container>
     <v-row class="mb-4" align="center">
       <v-col>
-        <h1 class="text-h4 text-primary">個人商品管理</h1>
+        <h1 class="text-h4 text-primary">設定商品</h1>
       </v-col>
       <v-col class="text-right">
         <v-btn
