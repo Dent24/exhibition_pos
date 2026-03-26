@@ -13,7 +13,7 @@
         :key="product.id"
         class="mb-2 border"
       >
-        <v-expansion-panel-title>
+        <v-expansion-panel-title class="bg-grey-lighten-4">
           <v-row no-gutters align="center">
             <v-col cols="6" class="font-weight-bold text-primary">
               <v-icon icon="mdi-package-variant" class="mr-2"></v-icon>

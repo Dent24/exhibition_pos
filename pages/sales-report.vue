@@ -18,7 +18,7 @@
 
     <v-expansion-panels multiple>
       <v-expansion-panel v-for="booth in boothsReport" :key="booth.id">
-        <v-expansion-panel-title>
+        <v-expansion-panel-title class="bg-grey-lighten-4">
           <div class="d-flex justify-space-between w-100 align-center pr-4">
             <div>
               <v-icon icon="mdi-map-marker-outline" class="mr-2"></v-icon>

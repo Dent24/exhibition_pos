@@ -8,7 +8,7 @@
         :key="booth.id"
         class="mb-4"
       >
-        <v-expansion-panel-title>
+        <v-expansion-panel-title class="bg-grey-lighten-4">
           <v-row no-gutters align="center">
             <v-col cols="8">
               <span class="text-h6 font-weight-bold">{{
