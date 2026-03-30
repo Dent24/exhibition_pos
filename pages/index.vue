@@ -37,6 +37,16 @@
               </v-card-item>
             </v-card>
           </v-col>
+          <v-col cols="12">
+            <v-card hover @click="router.push('/pos')">
+              <v-card-item prepend-icon="mdi-cash-register">
+                <v-card-title>現場 POS 結帳系統</v-card-title>
+                <v-card-subtitle
+                  >快速錄入銷售、自動扣除庫存、即時計算金額</v-card-subtitle
+                >
+              </v-card-item>
+            </v-card>
+          </v-col>
         </v-row>
       </v-col>
 
