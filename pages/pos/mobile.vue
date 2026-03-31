@@ -19,12 +19,31 @@
         <v-row dense>
           <v-col v-for="item in products" :key="item.id" cols="6">
             <v-card
-              @click="addToCart(item)"
+              v-if="item.product"
+              @click="item.product.total_inventory > 0 ? addToCart(item) : null"
+              :disabled="item.product.total_inventory <= 0"
+              :class="{
+                'opacity-60 bg-grey-lighten-2':
+                  item.product.total_inventory <= 0,
+              }"
               class="pa-3 text-center rounded-lg"
+              variant="flat"
             >
-              <div class="text-truncate">{{ item.product.name }}</div>
+              <div class="text-truncate font-weight-bold">
+                {{ item.product.name }}
+              </div>
               <div class="text-primary font-weight-bold">
                 ${{ item.event_price }}
+              </div>
+
+              <div class="mt-1" style="font-size: 0.75rem">
+                <span
+                  v-if="item.product.total_inventory > 0"
+                  class="text-grey-darken-1"
+                >
+                  庫存: {{ item.product.total_inventory }}
+                </span>
+                <span v-else class="text-error font-weight-bold">已售罄</span>
               </div>
             </v-card>
           </v-col>
@@ -56,27 +75,56 @@
         <v-toolbar title="結帳清單" density="compact">
           <v-btn icon="mdi-close" @click="showCart = false"></v-btn>
         </v-toolbar>
-        <v-list style="max-height: 40vh" class="overflow-y-auto">
+        <v-list style="max-height: 50vh" class="overflow-y-auto">
           <v-list-item v-for="(c, i) in cart" :key="i">
-            <v-list-item-title>{{ c.product.name }}</v-list-item-title>
+            <v-list-item-title class="font-weight-bold">{{
+              c.product.name
+            }}</v-list-item-title>
+            <v-list-item-subtitle
+              >${{ c.event_price }} / 剩餘:
+              {{ c.product.total_inventory }}</v-list-item-subtitle
+            >
+
             <template v-slot:append>
-              <v-btn
-                icon="mdi-minus"
-                size="x-small"
-                @click="c.quantity > 1 ? c.quantity-- : cart.splice(i, 1)"
-              ></v-btn>
-              <span class="mx-2">{{ c.quantity }}</span>
-              <v-btn
-                icon="mdi-plus"
-                size="x-small"
-                @click="c.quantity++"
-              ></v-btn>
+              <div class="d-flex align-center">
+                <v-btn
+                  icon="mdi-minus"
+                  size="x-small"
+                  variant="tonal"
+                  @click="c.quantity > 1 ? c.quantity-- : cart.splice(i, 1)"
+                ></v-btn>
+                <span class="mx-3 font-weight-bold">{{ c.quantity }}</span>
+                <v-btn
+                  icon="mdi-plus"
+                  size="x-small"
+                  variant="tonal"
+                  color="primary"
+                  :disabled="c.quantity >= c.product.total_inventory"
+                  @click="
+                    c.quantity < c.product.total_inventory ? c.quantity++ : null
+                  "
+                ></v-btn>
+              </div>
             </template>
           </v-list-item>
         </v-list>
-        <div class="pa-4">
-          <v-btn block color="success" size="large" @click="checkout"
-            >確認結帳 ${{ totalAmount }}</v-btn
+
+        <v-divider></v-divider>
+
+        <div class="pa-4 bg-white">
+          <div class="d-flex justify-space-between mb-2 text-subtitle-1">
+            <span>總金額</span>
+            <span class="text-h6 font-weight-black text-success"
+              >${{ totalAmount }}</span
+            >
+          </div>
+          <v-btn
+            block
+            color="success"
+            size="large"
+            class="rounded-pill"
+            @click="checkout"
+            >確認結帳</v-btn
           >
         </div>
       </v-card>
