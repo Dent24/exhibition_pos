@@ -60,9 +60,30 @@
                   class="mt-3 border rounded shadow-sm"
                 >
                   <template v-slot:item.revenue="{ item }">
-                    <span class="text-success font-weight-medium"
-                      >${{ item.revenue }}</span
-                    >
+                    <div class="d-flex align-center justify-end">
+                      <span class="text-success font-weight-bold mr-3"
+                        >${{ item.revenue }}</span
+                      >
+
+                      <v-btn
+                        v-if="!item.is_paid"
+                        size="x-small"
+                        color="orange-darken-1"
+                        @click="confirmPayment(item.detail_id)"
+                      >
+                        確認收款
+                      </v-btn>
+
+                      <v-chip
+                        v-else
+                        size="x-small"
+                        color="blue"
+                        variant="flat"
+                        prepend-icon="mdi-check-circle"
+                      >
+                        已結清
+                      </v-chip>
+                    </div>
                   </template>
                 </v-data-table>
               </v-list-item>
@@ -97,15 +118,21 @@ const fetchProductReport = async () => {
       .from("Products")
       .select(
         `
-        id, name,
+        id, 
+        name,
         details:Exhibition_Product_Details (
-          id, event_price,
+          id, 
+          event_price, 
+          is_paid,
           booth:booth_id ( 
-            id, booth_number, 
+            id, 
+            booth_number, 
             owner:owner_id ( nickname ),
             exhibition:exhibition_id ( id, name )
           ),
-          sales:Sales_Records ( quantity )
+          sales:Sales_Records ( 
+            quantity 
+          )
         )
       `
       )
@@ -145,6 +172,8 @@ const fetchProductReport = async () => {
         exhibitionGroups[ex.id].ex_total_qty += qty;
         exhibitionGroups[ex.id].ex_total_rev += rev;
         exhibitionGroups[ex.id].booths.push({
+          detail_id: d.id, // ⭐ 關鍵：確保這裡有存入正確的 ID
+          is_paid: d.is_paid, // 確保狀態同步
           booth_info: `${d.booth.booth_number} (${d.booth.owner.nickname})`,
           event_price: d.event_price,
           quantity: qty,
@@ -162,6 +191,36 @@ const fetchProductReport = async () => {
     });
   } catch (err: any) {
     alert("讀取報表失敗: " + err.message);
+  } finally {
+    loading.value = false;
+  }
+};
+
+// 新增確認收款方法
+const confirmPayment = async (detailId: number) => {
+  // 防錯檢查：如果 ID 是 undefined 或 null，直接擋掉
+  if (!detailId) {
+    console.error("錯誤：detailId 為空，無法執行更新。");
+    alert("系統錯誤：找不到該項目的識別碼，請重新整理頁面。");
+    return;
+  }
+
+  const ok = confirm("確定已收到此攤位的款項嗎？確認後該筆銷售紀錄將鎖定。");
+  if (!ok) return;
+
+  loading.value = true;
+  try {
+    const { error } = await supabase
+      .from("Exhibition_Product_Details")
+      .update({ is_paid: true })
+      .eq("id", detailId); // 這裡如果傳入 undefined 就會觸發資料庫報錯
+
+    if (error) throw error;
+
+    await fetchProductReport(); // 重新整理報表
+    alert("收款確認成功！該項目已鎖定。");
+  } catch (err: any) {
+    alert("確認收款失敗: " + err.message);
   } finally {
     loading.value = false;
   }

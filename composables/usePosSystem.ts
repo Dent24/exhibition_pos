@@ -40,6 +40,7 @@ export const usePosSystem = () => {
         .select(`
           id, 
           event_price, 
+          is_paid,
           product:product_id!inner (
             id,
             name,
@@ -56,9 +57,10 @@ export const usePosSystem = () => {
   
       if (error) throw error;
   
-      // 關鍵修正：過濾掉任何 product 為 null 的異常資料
-      // 確保 item.product 存在且 total_inventory 不是 undefined
-      products.value = (data || []).filter(item => item.product !== null);
+      // 2. 關鍵修正
+      products.value = (data || []).filter(item => 
+        item.product !== null
+      );
       
     } catch (err) {
       console.error('POS 商品載入失敗:', err);
@@ -69,7 +71,12 @@ export const usePosSystem = () => {
   });
 
   const addToCart = (item: any) => {
-    // 假設 product 裡面有帶出 total_inventory
+    // 檢查是否已結清 (防禦性編程)
+    if (item.is_paid) {
+      alert('此商品賣家已結清，無法再販售！');
+      return;
+    }
+  
     const currentInventory = item.product.total_inventory; 
     const exist = cart.value.find(c => c.id === item.id);
     
@@ -93,29 +100,35 @@ export const usePosSystem = () => {
     loading.value = true;
   
     try {
-      // 準備傳給 SQL Function 的資料格式
       const itemsToProcess = cart.value.map(c => ({
         detail_id: c.id,
         quantity: c.quantity
       }));
   
-      // 呼叫 Supabase RPC
       const { error } = await supabase.rpc('pos_checkout', {
         p_items: itemsToProcess
       });
   
       if (error) throw error;
   
-      // 成功後的處理
-      alert('結帳成功！庫存已同步扣除。');
+      alert('結帳成功！');
       cart.value = [];
-      
-      // 關鍵：重新抓取商品資訊（更新畫面上顯示的庫存數字）
       await refreshProductData(); 
   
     } catch (err: any) {
       console.error('結帳失敗:', err.message);
-      alert('結帳失敗：' + (err.message.includes('庫存不足') ? '部分商品庫存不足，請重新確認' : err.message));
+      
+      // 辨識特定的鎖定錯誤
+      if (err.message.includes('已完成收款確認')) {
+        alert('結帳失敗：部分商品已被賣家確認收款鎖定，請移除後再結帳。');
+      } else if (err.message.includes('庫存不足')) {
+        alert('結帳失敗：部分商品庫存不足。');
+      } else {
+        alert('結帳失敗：' + err.message);
+      }
+      
+      // 發生錯誤時也刷新一次商品，確保狀態同步
+      await refreshProductData();
     } finally {
       loading.value = false;
     }

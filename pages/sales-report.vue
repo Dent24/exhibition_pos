@@ -17,84 +17,142 @@
 
     <v-expansion-panels multiple>
       <v-expansion-panel v-for="booth in boothsReport" :key="booth.id">
-        <v-expansion-panel-title class="bg-grey-lighten-4">
+        <v-expansion-panel-title class="bg-primary text-white">
           <div class="d-flex justify-space-between w-100 align-center pr-4">
             <div>
-              <v-icon icon="mdi-map-marker-outline" class="mr-2"></v-icon>
+              <v-icon icon="mdi-storefront" class="mr-2"></v-icon>
               <strong>{{ booth.exhibitions.name }}</strong>
-              <v-chip size="x-small" class="ml-2"
+              <v-chip
+                size="x-small"
+                color="white"
+                variant="outlined"
+                class="ml-2"
                 >攤位: {{ booth.booth_number }}</v-chip
               >
             </div>
-            <span class="text-success font-weight-bold"
-              >營收: ${{ booth.total_booth_revenue }}</span
+            <span class="text-h6 font-weight-bold"
+              >總營收: ${{ booth.total_booth_revenue }}</span
             >
           </div>
         </v-expansion-panel-title>
 
-        <v-expansion-panel-text>
-          <v-data-table
-            :headers="[
-              { title: '', key: 'data-table-expand' },
-              { title: '商品名稱', key: 'product.name' },
-              { title: '單價', key: 'event_price' },
-              { title: '累計銷量', key: 'total_qty' },
-              { title: '小計', key: 'subtotal' },
-            ]"
-            :items="
-              booth.details.map((d) => ({
-                ...d,
-                total_qty: d.sales.reduce((s, r) => s + r.quantity, 0),
-                subtotal:
-                  d.sales.reduce((s, r) => s + r.quantity, 0) * d.event_price,
-              }))
-            "
-            show-expand
-            density="compact"
+        <v-expansion-panel-text class="pa-0">
+          <v-card
+            v-for="seller in booth.sellers"
+            :key="seller.id"
+            variant="outlined"
+            class="ma-4 border-primary"
           >
-            <template v-slot:expanded-row="{ columns, item }">
-              <tr>
-                <td :colspan="columns.length" class="bg-grey-lighten-4 pa-4">
-                  <div class="text-subtitle-2 mb-2">
-                    <v-icon icon="mdi-history" size="small"></v-icon>
-                    販售紀錄明細
-                  </div>
+            <v-toolbar density="compact" color="primary-lighten-5 bg-white">
+              <v-icon
+                icon="mdi-account-star"
+                class="ml-4 mr-2"
+                color="primary"
+              ></v-icon>
+              <span class="font-weight-bold text-primary"
+                >賣家：{{ seller.nickname }}</span
+              >
+              <v-spacer></v-spacer>
+              <span class="mr-4 text-subtitle-1"
+                >賣家小計:
+                <b class="text-primary"
+                  >${{ seller.seller_total_revenue }}</b
+                ></span
+              >
+            </v-toolbar>
 
-                  <v-table density="compact" class="elevation-1 rounded">
-                    <thead>
-                      <tr>
-                        <th>銷售時間</th>
-                        <th>數量</th>
-                        <th>操作</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr v-for="record in item.sales" :key="record.id">
-                        <td>
-                          {{ new Date(record.created_at).toLocaleString() }}
-                        </td>
-                        <td>{{ record.quantity }}</td>
-                        <td>
-                          <v-btn
-                            icon="mdi-delete"
-                            variant="text"
-                            color="error"
-                            size="x-small"
-                            @click="deleteSingleRecord(record.id)"
-                          ></v-btn>
-                        </td>
-                      </tr>
-                      <tr v-if="item.sales.length === 0">
-                        <td colspan="3" class="text-center text-grey">
-                          目前尚無販售紀錄
-                        </td>
-                      </tr>
-                    </tbody>
-                  </v-table>
-                </td>
-              </tr>
-            </template>
-          </v-data-table>
+            <v-data-table
+              :headers="[
+                { title: '', key: 'data-table-expand' },
+                { title: '商品名稱', key: 'product.name' },
+                { title: '狀態', key: 'status', width: '100px' }, // 新增狀態欄位
+                { title: '展覽單價', key: 'event_price' },
+                { title: '累計銷量', key: 'total_qty' },
+                { title: '小計', key: 'subtotal' },
+              ]"
+              :items="seller.products"
+              show-expand
+              density="comfortable"
+            >
+              <template v-slot:item.status="{ item }">
+                <v-chip
+                  v-if="item.is_paid"
+                  color="blue"
+                  size="x-small"
+                  variant="flat"
+                  prepend-icon="mdi-lock"
+                >
+                  已收款
+                </v-chip>
+                <v-chip v-else color="grey" size="x-small" variant="outlined">
+                  待結算
+                </v-chip>
+              </template>
+
+              <template v-slot:item.subtotal="{ item }">
+                <span
+                  :class="
+                    item.is_paid
+                      ? 'text-blue font-weight-bold'
+                      : 'font-weight-bold'
+                  "
+                >
+                  ${{ item.subtotal }}
+                </span>
+              </template>
+
+              <template v-slot:expanded-row="{ columns, item }">
+                <tr>
+                  <td :colspan="columns.length" class="bg-grey-lighten-5 pa-4">
+                    <div class="d-flex align-center mb-2">
+                      <div class="text-caption font-weight-bold">
+                        單筆銷售流水紀錄：
+                      </div>
+                      <v-spacer></v-spacer>
+                      <span v-if="item.is_paid" class="text-caption text-blue">
+                        <v-icon size="small">mdi-information</v-icon>
+                        賣家已確認收款，紀錄已鎖定
+                      </span>
+                    </div>
+
+                    <v-table density="compact" class="border rounded">
+                      <thead>
+                        <tr>
+                          <th>銷售時間</th>
+                          <th>數量</th>
+                          <th class="text-right">操作</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr v-for="record in item.sales" :key="record.id">
+                          <td class="text-caption">
+                            {{ new Date(record.created_at).toLocaleString() }}
+                          </td>
+                          <td>{{ record.quantity }}</td>
+                          <td class="text-right">
+                            <v-btn
+                              v-if="!item.is_paid"
+                              icon="mdi-delete"
+                              variant="text"
+                              color="error"
+                              size="x-small"
+                              @click="deleteSingleRecord(record.id)"
+                            ></v-btn>
+                            <v-icon
+                              v-else
+                              icon="mdi-lock-outline"
+                              size="small"
+                              color="grey"
+                            ></v-icon>
+                          </td>
+                        </tr>
+                      </tbody>
+                    </v-table>
+                  </td>
+                </tr>
+              </template>
+            </v-data-table>
+          </v-card>
         </v-expansion-panel-text>
       </v-expansion-panel>
     </v-expansion-panels>
@@ -129,17 +187,21 @@
             item-value="id"
             variant="outlined"
             class="mt-2"
-            :no-data-text="
-              selectedBoothIdInDialog
-                ? '此攤位尚未設定任何商品'
-                : '請先選擇攤位'
-            "
           >
             <template v-slot:item="{ props, item }">
               <v-list-item
                 v-bind="props"
-                :subtitle="`展覽售價: $${item.event_price}`"
-              ></v-list-item>
+                :disabled="item.is_paid"
+                :subtitle="
+                  item.is_paid
+                    ? '⚠️ 賣家已收款鎖定'
+                    : `展覽售價: $${item.event_price}`
+                "
+              >
+                <template v-slot:append v-if="item.is_paid">
+                  <v-icon color="blue">mdi-lock</v-icon>
+                </template>
+              </v-list-item>
             </template>
           </v-select>
 
@@ -201,80 +263,149 @@ const productsInSelectedBooth = computed(() => {
   return targetBooth.details;
 });
 
-// 1. 取得所有銷售報表資料
+// 1. 修改 fetchSalesReport 加入 is_paid
 const fetchSalesReport = async () => {
+  if (!userStore.profile?.id) return;
   loading.value = true;
-  const { data, error } = await supabase
-    .from("Exhibition_Booths")
-    .select(
-      `
-      id, booth_number,
-      exhibitions:exhibition_id ( name ),
-      details:Exhibition_Product_Details (
-        id, event_price,
-        product:product_id ( name ),
-        sales:Sales_Records ( id, quantity, created_at )
-      )
-    `
-    )
-    .eq("owner_id", userStore.profile.id);
 
-  if (!error) {
-    // 預處理資料，計算每一層的小計
-    boothsReport.value = data.map((booth) => ({
-      ...booth,
-      total_booth_revenue: booth.details.reduce(
-        (sum, d) =>
-          sum + d.sales.reduce((s, r) => s + r.quantity, 0) * d.event_price,
-        0
-      ),
-    }));
+  try {
+    const { data, error } = await supabase
+      .from("Exhibition_Booths")
+      .select(
+        `
+        id, 
+        booth_number,
+        exhibitions:exhibition_id ( name ),
+        details:Exhibition_Product_Details (
+          id, 
+          event_price, 
+          is_paid,
+          product:product_id ( 
+            name, 
+            seller:seller_id ( id, nickname ) 
+          ),
+          sales:Sales_Records ( id, quantity, created_at )
+        )
+      `
+      )
+      .eq("owner_id", userStore.profile.id);
+
+    if (error) throw error;
+
+    // 如果沒資料，直接設為空陣列並跳出
+    if (!data || data.length === 0) {
+      boothsReport.value = [];
+      return;
+    }
+
+    // --- 安全的資料重組邏輯 ---
+    boothsReport.value = data.map((booth) => {
+      const sellerMap = new Map();
+
+      // 檢查 details 是否存在
+      if (booth.details) {
+        booth.details.forEach((detail) => {
+          // 安全取值：防止 product 或 seller 為 null
+          const seller = detail.product?.seller;
+          if (!seller) return; // 跳過異常資料
+
+          const sellerId = seller.id;
+
+          if (!sellerMap.has(sellerId)) {
+            sellerMap.set(sellerId, {
+              id: sellerId,
+              nickname: seller.nickname,
+              seller_total_revenue: 0,
+              products: [],
+            });
+          }
+
+          const sellerData = sellerMap.get(sellerId);
+          // 安全檢查 sales 是否存在
+          const salesArr = detail.sales || [];
+          const totalQty = salesArr.reduce((s, r) => s + (r.quantity || 0), 0);
+          const subtotal = totalQty * (detail.event_price || 0);
+
+          sellerData.seller_total_revenue += subtotal;
+          sellerData.products.push({
+            ...detail,
+            total_qty: totalQty,
+            subtotal: subtotal,
+            is_paid: !!detail.is_paid, // 強制轉為布林
+            sales: salesArr,
+          });
+        });
+      }
+
+      return {
+        ...booth,
+        sellers: Array.from(sellerMap.values()),
+        total_booth_revenue: Array.from(sellerMap.values()).reduce(
+          (s, sel: any) => s + sel.seller_total_revenue,
+          0
+        ),
+      };
+    });
+  } catch (err: any) {
+    console.error("處理報表時出錯:", err);
+    alert("讀取失敗: " + err.message);
+  } finally {
+    loading.value = false;
   }
-  loading.value = false;
 };
 
-// 2. 新增銷售紀錄
+// 2. 修改 saveSale 捕獲已收款錯誤
 const saveSale = async () => {
   if (!saleForm.value.detail_id || saleForm.value.quantity <= 0) return;
 
   loading.value = true;
-  const { error } = await supabase.from("Sales_Records").insert({
-    detail_id: saleForm.value.detail_id,
-    quantity: saleForm.value.quantity,
-  });
+  try {
+    const { error } = await supabase.rpc("manual_add_sale", {
+      p_detail_id: saleForm.value.detail_id,
+      p_quantity: saleForm.value.quantity,
+    });
 
-  if (!error) {
+    if (error) {
+      if (error.message.includes("已完成收款確認")) {
+        alert("無法新增：賣家已確認此商品的收款，數據已鎖定。");
+      } else {
+        throw error;
+      }
+      return;
+    }
+
     addDialog.value = false;
     await fetchSalesReport();
-  } else {
-    alert("新增失敗: " + error.message);
+  } catch (err: any) {
+    alert("新增失敗: " + err.message);
+  } finally {
+    loading.value = false;
   }
-  loading.value = false;
 };
 
-// 3. 刪除銷售紀錄 (這通常會刪除該品項在該攤位的所有紀錄，或可改為針對特定 ID)
+// 3. 刪除單筆紀錄 (修改為呼叫 RPC)
 const deleteSingleRecord = async (recordId: number) => {
-  // 1. 二次確認，防止誤點
-  if (!confirm("確定要刪除這筆銷售紀錄嗎？此動作將會影響營收統計。")) return;
+  if (!confirm("確定要刪除這筆銷售紀錄嗎？")) return;
 
   loading.value = true;
   try {
-    // 2. 執行刪除指令
-    const { error } = await supabase
-      .from("Sales_Records")
-      .delete()
-      .eq("id", recordId);
+    const { error } = await supabase.rpc("delete_sale_and_restock", {
+      p_record_id: recordId,
+    });
 
-    if (error) throw error;
+    if (error) {
+      // 捕獲 SQL Function 丟出的 RAISE EXCEPTION
+      if (error.message.includes("禁止修改")) {
+        alert("無法刪除：該攤位商品已由賣家確認收款結案。");
+      } else {
+        throw error;
+      }
+      return;
+    }
 
-    // 3. 刪除成功後，重新抓取報表資料以更新畫面上的統計數字
     await fetchSalesReport();
-
-    // 選用：加入一個簡單的成功提示（若你有使用 Snackbar）
-    // snackbar.show('紀錄已刪除', 'success');
   } catch (err: any) {
-    console.error("刪除失敗:", err.message);
-    alert("無法刪除紀錄：" + err.message);
+    alert("操作失敗: " + err.message);
   } finally {
     loading.value = false;
   }

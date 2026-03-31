@@ -189,10 +189,67 @@ const saveProduct = async () => {
 
 // 3. 刪除商品
 const deleteProduct = async (id: number) => {
-  if (!confirm("確定要刪除此商品嗎？這可能會影響到已關聯的攤位紀錄。")) return;
+  loading.value = true;
 
-  const { error } = await supabase.from("Products").delete().eq("id", id);
-  if (!error) fetchMyProducts();
+  try {
+    // 1. 檢查是否有「展覽攤位」正在使用此商品 (Exhibition_Product_Details)
+    const { count: boothCount, error: boothError } = await supabase
+      .from("Exhibition_Product_Details")
+      .select("*", { count: "exact", head: true })
+      .eq("product_id", id);
+
+    if (boothError) throw boothError;
+
+    if (boothCount && boothCount > 0) {
+      alert(
+        `無法刪除：此商品目前已關聯到 ${boothCount} 個展覽攤位。請先聯絡攤主移除該攤位上的商品設定。`
+      );
+      return;
+    }
+
+    // 2. 檢查是否有「銷售紀錄」 (Sales_Records)
+    // 雖然銷售紀錄是連到 Exhibition_Product_Details，
+    // 但保險起見，我們檢查該商品的任一 Detail 是否有過 Sales
+    const { data: details } = await supabase
+      .from("Exhibition_Product_Details")
+      .select("id")
+      .eq("product_id", id);
+
+    if (details && details.length > 0) {
+      const detailIds = details.map((d) => d.id);
+      const { count: salesCount, error: salesError } = await supabase
+        .from("Sales_Records")
+        .select("*", { count: "exact", head: true })
+        .in("detail_id", detailIds);
+
+      if (salesError) throw salesError;
+
+      if (salesCount && salesCount > 0) {
+        alert(
+          `無法刪除：此商品已有 ${salesCount} 筆銷售紀錄。為了保留帳務準確性，建議您將授權關閉或將庫存設為 0，而非刪除商品。`
+        );
+        return;
+      }
+    }
+
+    // 3. 通過檢查後才執行刪除
+    if (!confirm("確定要刪除此商品嗎？此動作無法復原。")) return;
+
+    const { error: deleteError } = await supabase
+      .from("Products")
+      .delete()
+      .eq("id", id);
+
+    if (deleteError) throw deleteError;
+
+    // 重新整理列表
+    await fetchMyProducts();
+  } catch (err: any) {
+    console.error("刪除檢查失敗:", err);
+    alert("刪除失敗: " + err.message);
+  } finally {
+    loading.value = false;
+  }
 };
 
 // 開啟編輯

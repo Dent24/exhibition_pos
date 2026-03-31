@@ -233,15 +233,81 @@ const saveBooth = async () => {
   }
 };
 
-// 4. 刪除攤位
+// 4. 刪除攤位 (強化版)
 const deleteBooth = async (id: number) => {
-  if (!confirm("確定要刪除此參展紀錄嗎？")) return;
+  loading.value = true;
 
-  const { error } = await supabase
-    .from("Exhibition_Booths")
-    .delete()
-    .eq("id", id);
-  if (!error) fetchMyBooths();
+  try {
+    // 1. 檢查是否有「銷售紀錄」 (Sales_Records)
+    // 邏輯：從 Exhibition_Product_Details 找出屬於這個攤位的所有 Detail ID
+    const { data: details, error: detailError } = await supabase
+      .from("Exhibition_Product_Details")
+      .select("id")
+      .eq("booth_id", id);
+
+    if (detailError) throw detailError;
+
+    if (details && details.length > 0) {
+      const detailIds = details.map((d) => d.id);
+
+      const { count: salesCount, error: salesError } = await supabase
+        .from("Sales_Records")
+        .select("*", { count: "exact", head: true })
+        .in("detail_id", detailIds);
+
+      if (salesError) throw salesError;
+
+      // 如果已有銷售，絕對禁止刪除
+      if (salesCount && salesCount > 0) {
+        alert(
+          `無法刪除：此攤位已有 ${salesCount} 筆銷售紀錄。為了保留歷史帳務資料，請勿刪除。若不慎設錯，建議將攤位號碼改為「作廢」或聯絡管理員。`
+        );
+        return;
+      }
+    }
+
+    // 2. 檢查是否為「進行中」的活動
+    const targetBooth = booths.value.find((b) => b.id === id);
+    if (targetBooth) {
+      const now = new Date();
+      const startDate = new Date(targetBooth.exhibitions.start_date);
+      const endDate = new Date(targetBooth.exhibitions.end_date);
+
+      // 如果現在時間在展覽期間內
+      if (now >= startDate && now <= endDate) {
+        if (
+          !confirm(
+            "警告：此展覽活動正在進行中！刪除攤位將導致 POS 系統無法運作。確定要繼續嗎？"
+          )
+        ) {
+          return;
+        }
+      }
+    }
+
+    // 3. 執行刪除
+    if (
+      !confirm(
+        "確定要刪除此參展紀錄嗎？這也會同時移除該攤位下所有的商品配置（但不會刪除商品本體）。"
+      )
+    )
+      return;
+
+    const { error: deleteError } = await supabase
+      .from("Exhibition_Booths")
+      .delete()
+      .eq("id", id);
+
+    if (deleteError) throw deleteError;
+
+    // 重新整理列表
+    await fetchMyBooths();
+  } catch (err: any) {
+    console.error("刪除檢查失敗:", err);
+    alert("刪除失敗: " + err.message);
+  } finally {
+    loading.value = false;
+  }
 };
 
 // 開啟編輯視窗

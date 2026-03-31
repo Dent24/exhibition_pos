@@ -52,23 +52,54 @@
           <v-data-table
             :headers="[
               { title: '商品名稱', key: 'product.name' },
+              { title: '狀態', key: 'status', width: '100px' },
               { title: '原價', key: 'product.original_price' },
               { title: '展覽售價', key: 'event_price' },
               { title: '操作', key: 'actions', align: 'end', sortable: false },
             ]"
             :items="booth.details"
             density="comfortable"
-            no-data-text="此攤位尚未設定商品"
           >
-            <template v-slot:item.event_price="{ item }">
-              <span class="text-primary font-weight-bold"
-                >${{ item.event_price }}</span
+            <template v-slot:item.status="{ item }">
+              <v-chip
+                v-if="item.is_paid"
+                color="blue"
+                size="x-small"
+                variant="flat"
+                prepend-icon="mdi-check-decagram"
               >
+                已結清
+              </v-chip>
+              <v-chip v-else color="grey" size="x-small" variant="outlined">
+                待結
+              </v-chip>
+            </template>
+
+            <template v-slot:item.event_price="{ item }">
+              <span
+                :class="
+                  item.is_paid ? 'text-grey' : 'text-primary font-weight-bold'
+                "
+              >
+                ${{ item.event_price }}
+              </span>
             </template>
 
             <template v-slot:item.actions="{ item }">
+              <template v-if="item.is_paid">
+                <v-icon
+                  icon="mdi-lock"
+                  color="blue"
+                  size="small"
+                  class="mr-2"
+                ></v-icon>
+                <span class="text-caption text-blue">帳務已鎖定</span>
+              </template>
+
               <template
-                v-if="getStatus(booth.exhibitions.start_date) === 'editable'"
+                v-else-if="
+                  getStatus(booth.exhibitions.start_date) === 'editable'
+                "
               >
                 <v-btn
                   icon="mdi-pencil"
@@ -86,7 +117,13 @@
                   @click="removeProduct(item.id)"
                 ></v-btn>
               </template>
-              <v-icon v-else icon="mdi-lock" color="grey" size="small"></v-icon>
+
+              <v-icon
+                v-else
+                icon="mdi-lock-clock"
+                color="grey"
+                size="small"
+              ></v-icon>
             </template>
           </v-data-table>
         </v-expansion-panel-text>
@@ -208,7 +245,7 @@ const fetchAllData = async () => {
         id, booth_number,
         exhibitions:exhibition_id ( id, name, start_date, end_date ),
         details:Exhibition_Product_Details (
-          id, event_price,
+          id, event_price, is_paid,
           product:product_id ( id, name, original_price )
         )
       `
@@ -292,20 +329,63 @@ const saveProduct = async () => {
   }
 };
 
-// 5. 移除商品
+// 5. 移除商品 (下架) - 強化版
 const removeProduct = async (detailId: number) => {
-  if (!confirm("確定下架此商品？")) return;
-  const { error } = await supabase
-    .from("Exhibition_Product_Details")
-    .delete()
-    .eq("id", detailId);
-  if (!error) fetchAllData();
+  // 找出該筆 detail 的資料
+  let targetDetail: any = null;
+  boothsData.value.forEach((b) => {
+    const found = b.details.find((d: any) => d.id === detailId);
+    if (found) targetDetail = found;
+  });
+
+  // 1. 檢查是否已收款
+  if (targetDetail?.is_paid) {
+    alert("無法下架：賣家已確認此商品的收款並結案，資料已鎖定。");
+    return;
+  }
+
+  loading.value = true;
+  try {
+    // 2. 檢查是否有銷售紀錄
+    const { count, error: salesError } = await supabase
+      .from("Sales_Records")
+      .select("*", { count: "exact", head: true })
+      .eq("detail_id", detailId);
+
+    if (salesError) throw salesError;
+
+    if (count && count > 0) {
+      alert(
+        `無法下架：此商品在此攤位已有 ${count} 筆銷售紀錄，請先前往「銷售紀錄」處理。`
+      );
+      return;
+    }
+
+    // ... 其餘原本的刪除邏輯 ...
+    if (!confirm("確定要下架此商品嗎？")) return;
+
+    const { error: deleteError } = await supabase
+      .from("Exhibition_Product_Details")
+      .delete()
+      .eq("id", detailId);
+
+    if (deleteError) throw deleteError;
+    await fetchAllData();
+  } catch (err: any) {
+    alert("操作失敗: " + err.message);
+  } finally {
+    loading.value = false;
+  }
 };
 
 // 新增開啟編輯彈窗的邏輯
 const openEditDialog = (boothId: number, item: any) => {
+  if (item.is_paid) {
+    alert("此商品已結清，無法修改售價。");
+    return;
+  }
   activeBoothId.value = boothId;
-  isEdit.value = true; // 切換為編輯模式
+  isEdit.value = true;
   currentDetailId.value = item.id;
   eventPriceForm.value = {
     product_id: item.product.id,
