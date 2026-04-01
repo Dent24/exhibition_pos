@@ -56,7 +56,7 @@
       </v-list>
     </v-navigation-drawer>
 
-    <v-main class="h-screen">
+    <v-main class="fill-height" style="min-height: 100vh">
       <NuxtPage />
     </v-main>
   </v-layout>
