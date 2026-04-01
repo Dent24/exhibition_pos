@@ -1,58 +1,82 @@
 <template>
-  <v-container class="fill-height" fluid>
-    <v-row align="center" justify="center">
-      <v-col cols="12" sm="8" md="4">
-        <v-card class="bg-white elevation-12" :loading="loading">
-          <v-toolbar color="primary" dark flat>
-            <v-toolbar-title>會員登入</v-toolbar-title>
-          </v-toolbar>
-          <v-card-text>
-            <v-form ref="form" v-model="valid" lazy-validation>
-              <v-text-field
-                v-model="email"
-                label="信箱 (Email)"
-                name="login"
-                prepend-icon="mdi-account"
-                type="email"
-                :rules="emailRules"
-                required
-              ></v-text-field>
-
-              <v-text-field
-                v-model="password"
-                label="密碼 (Password)"
-                name="password"
-                prepend-icon="mdi-lock"
-                type="password"
-                :rules="passwordRules"
-                required
-                @keyup.enter="handleLogin"
-              ></v-text-field>
-            </v-form>
-
-            <v-alert v-if="errorMsg" type="error" variant="tonal" class="mt-3">
-              {{ errorMsg }}
-            </v-alert>
-          </v-card-text>
-
-          <v-card-actions>
-            <v-spacer></v-spacer>
-            <v-btn color="secondary" variant="text" to="/register"
-              >還沒有帳號？去註冊</v-btn
-            >
-            <v-btn
-              color="primary"
-              @click="handleLogin"
-              :disabled="!valid"
-              :loading="loading"
-            >
-              登入
-            </v-btn>
-          </v-card-actions>
-        </v-card>
-      </v-col>
-    </v-row>
-  </v-container>
+  <div class="outer-box">
+    <div class="mb-4 text-center">
+      <h1 class="text-display-small text-indigo-darken-1 mb-2">展場POS系統</h1>
+      <p class="text-title-small text-grey-darken-1">攤主/賣家登入入口</p>
+    </div>
+    <v-card class="rounded-lg overflow-hidden">
+      <v-card-title class="text-center py-8 bg-primary elevation-3">
+        會員登入
+      </v-card-title>
+      <v-card-text class="bg-white pa-10">
+        <v-form ref="form" v-model="valid" lazy-validation>
+          <div class="mb-6">
+            <label class="d-block mb-2 ml-1"> 信箱 (Email) </label>
+            <v-text-field
+              v-model="email"
+              name="login"
+              type="email"
+              :rules="emailRules"
+              required
+              bg-color="#e5e2e1"
+              class="rounded-b-0"
+              density="comfortable"
+              hide-details
+              placeholder="example@domain.com"
+              prepend-inner-icon="mdi-account"
+              rounded="t-lg"
+              variant="filled"
+            ></v-text-field>
+          </div>
+          <div class="mb-8">
+            <label class="d-block mb-2 ml-1"> 密碼 (Password) </label>
+            <v-text-field
+              v-model="password"
+              name="password"
+              :rules="passwordRules"
+              required
+              @keyup.enter="handleLogin"
+              bg-color="#e5e2e1"
+              class="rounded-b-0"
+              density="comfortable"
+              hide-details
+              placeholder="••••••••"
+              prepend-inner-icon="mdi-lock"
+              rounded="t-lg"
+              type="password"
+              variant="filled"
+            ></v-text-field>
+          </div>
+          <v-alert v-if="errorMsg" type="error" variant="tonal" class="my-3">
+            {{ errorMsg }}
+          </v-alert>
+          <v-btn
+            @click="handleLogin"
+            :disabled="!valid"
+            :loading="loading"
+            block
+            class="font-bold rounded-xl text-white"
+            color="#0061a4"
+            elevation="4"
+            size="x-large"
+          >
+            登入
+          </v-btn>
+        </v-form>
+        <div class="mt-8 flex flex-col items-center space-y-4">
+          <v-btn
+            append-icon="mdi-arrow-right"
+            class="font-semibold text-sm lowercase"
+            color="#0061a4"
+            variant="text"
+            to="/register"
+          >
+            立即註冊帳號
+          </v-btn>
+        </div>
+      </v-card-text>
+    </v-card>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -109,3 +133,11 @@ const handleLogin = async (): Promise<void> => {
   }
 };
 </script>
+
+<style scoped>
+.outer-box {
+  margin: 0 auto;
+  max-width: 480px;
+  width: 100%;
+}
+</style>
