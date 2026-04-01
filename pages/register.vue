@@ -1,87 +1,131 @@
 <template>
-  <v-container class="fill-height">
-    <v-row justify="center">
-      <v-col cols="12" sm="8" md="6">
-        <v-card class="bg-white elevation-12" :loading="loading">
-          <v-toolbar color="primary" title="建立帳號" flat></v-toolbar>
-
-          <v-card-text>
-            <v-form ref="form" v-model="valid">
-              <v-text-field
-                v-model="email"
-                label="信箱"
-                prepend-icon="mdi-email"
-                :rules="emailRules"
+  <div class="outer-box">
+    <v-card class="rounded-lg overflow-hidden my-6">
+      <v-card-title class="text-center py-8 bg-primary elevation-3">
+        會員註冊
+      </v-card-title>
+      <v-card-text class="bg-white px-10 py-6">
+        <v-form ref="form" v-model="valid" lazy-validation>
+          <div class="mb-4">
+            <label class="d-block mb-2 ml-1"> 信箱 (Email) </label>
+            <v-text-field
+              v-model="email"
+              type="email"
+              :rules="emailRules"
+              required
+              bg-color="#e5e2e1"
+              class="rounded-b-0"
+              density="comfortable"
+              hide-details
+              placeholder="example@domain.com"
+              prepend-inner-icon="mdi-account"
+              rounded="t-lg"
+              variant="filled"
+            />
+          </div>
+          <div class="mb-4">
+            <label class="d-block mb-2 ml-1"> 暱稱 (Nickname) </label>
+            <v-text-field
+              v-model="nickname"
+              :rules="nicknameRules"
+              required
+              bg-color="#e5e2e1"
+              class="rounded-b-0"
+              density="comfortable"
+              hide-details
+              placeholder="nickname"
+              prepend-inner-icon="mdi-account-circle"
+              rounded="t-lg"
+              variant="filled"
+            />
+          </div>
+          <div class="mb-4">
+            <label class="d-block mb-2 ml-1"> 密碼 (Password) </label>
+            <v-text-field
+              v-model="password"
+              :rules="passwordRules"
+              required
+              bg-color="#e5e2e1"
+              class="rounded-b-0"
+              density="comfortable"
+              hide-details
+              placeholder="••••••••"
+              prepend-inner-icon="mdi-lock"
+              rounded="t-lg"
+              type="password"
+              variant="filled"
+            />
+          </div>
+          <div class="mb-4">
+            <label class="d-block mb-2 ml-1"> 確認密碼 (Check Password) </label>
+            <v-text-field
+              v-model="confirmPassword"
+              :rules="confirmPasswordRules"
+              required
+              bg-color="#e5e2e1"
+              class="rounded-b-0"
+              density="comfortable"
+              hide-details
+              placeholder="••••••••"
+              prepend-inner-icon="mdi-lock-check"
+              rounded="t-lg"
+              type="password"
+              variant="filled"
+            />
+          </div>
+          <v-row class="mb-4">
+            <v-col cols="6">
+              <v-switch
+                v-model="is_owner"
+                label="我是攤主"
+                color="info"
+                hide-details
+                inset
               />
-
-              <v-text-field
-                v-model="nickname"
-                label="暱稱"
-                prepend-icon="mdi-account-circle"
-                :rules="nicknameRules"
+            </v-col>
+            <v-col cols="6">
+              <v-switch
+                v-model="is_seller"
+                label="我是賣家"
+                color="info"
+                hide-details
+                inset
               />
-
-              <v-text-field
-                v-model="password"
-                label="密碼"
-                prepend-icon="mdi-lock"
-                type="password"
-                :rules="passwordRules"
-              />
-
-              <v-text-field
-                v-model="confirmPassword"
-                label="確認密碼"
-                prepend-icon="mdi-lock-check"
-                type="password"
-                :rules="confirmPasswordRules"
-              />
-
-              <v-divider class="my-4"></v-divider>
-
-              <v-row>
-                <v-col cols="6">
-                  <v-switch
-                    v-model="is_owner"
-                    label="我是攤主"
-                    color="primary"
-                    hide-details
-                  ></v-switch>
-                </v-col>
-                <v-col cols="6">
-                  <v-switch
-                    v-model="is_seller"
-                    label="我是賣家"
-                    color="secondary"
-                    hide-details
-                  ></v-switch>
-                </v-col>
-              </v-row>
-            </v-form>
-
-            <v-alert v-if="errorMsg" type="error" class="mt-4">{{
-              errorMsg
-            }}</v-alert>
-            <v-alert v-if="successMsg" type="success" class="mt-4">{{
-              successMsg
-            }}</v-alert>
-          </v-card-text>
-
-          <v-card-actions>
-            <v-spacer></v-spacer>
-            <v-btn variant="text" to="/login">返回登入</v-btn>
-            <v-btn
-              color="primary"
-              :loading="loading"
-              :disabled="!valid"
-              @click="handleRegister"
-              >註冊</v-btn
-            >
-          </v-card-actions>
-        </v-card>
-      </v-col>
-    </v-row>
-  </v-container>
+            </v-col>
+          </v-row>
+          <v-alert v-if="errorMsg" type="error" class="my-3">
+            {{ errorMsg }}
+          </v-alert>
+          <v-alert v-if="successMsg" type="success" class="my-3">
+            {{ successMsg }}
+          </v-alert>
+          <v-btn
+            @click="handleRegister"
+            :disabled="!valid"
+            :loading="loading"
+            block
+            class="font-bold rounded-xl text-white"
+            color="primary"
+            elevation="4"
+            size="x-large"
+          >
+            註冊
+          </v-btn>
+        </v-form>
+        <div class="mt-8 flex flex-col items-center space-y-4">
+          <v-btn
+            append-icon="mdi-arrow-right"
+            class="font-semibold text-sm lowercase"
+            color="primary"
+            variant="text"
+            to="/login"
+          >
+            返回登入
+          </v-btn>
+        </div>
+      </v-card-text>
+    </v-card>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -90,6 +134,10 @@ import type { VForm } from "vuetify/components";
 const mainStore = useMainStore();
 const supabase = useSupabaseClient();
 const router = useRouter();
+
+definePageMeta({
+  layout: "clear",
+});
 
 // 1. 表單狀態與類型限制
 const form = ref<VForm | null>(null);
@@ -173,3 +221,11 @@ const handleRegister = async (): Promise<void> => {
   }
 };
 </script>
+
+<style scoped>
+.outer-box {
+  margin: 0 auto;
+  max-width: 480px;
+  width: 100%;
+}
+</style>

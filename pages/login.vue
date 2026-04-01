@@ -8,13 +8,12 @@
       <v-card-title class="text-center py-8 bg-primary elevation-3">
         會員登入
       </v-card-title>
-      <v-card-text class="bg-white pa-10">
+      <v-card-text class="bg-white px-10 py-6">
         <v-form ref="form" v-model="valid" lazy-validation>
           <div class="mb-6">
             <label class="d-block mb-2 ml-1"> 信箱 (Email) </label>
             <v-text-field
               v-model="email"
-              name="login"
               type="email"
               :rules="emailRules"
               required
@@ -28,11 +27,10 @@
               variant="filled"
             ></v-text-field>
           </div>
-          <div class="mb-8">
+          <div class="mb-6">
             <label class="d-block mb-2 ml-1"> 密碼 (Password) </label>
             <v-text-field
               v-model="password"
-              name="password"
               :rules="passwordRules"
               required
               @keyup.enter="handleLogin"
@@ -56,18 +54,18 @@
             :loading="loading"
             block
             class="font-bold rounded-xl text-white"
-            color="#0061a4"
+            color="primary"
             elevation="4"
             size="x-large"
           >
             登入
           </v-btn>
         </v-form>
-        <div class="mt-8 flex flex-col items-center space-y-4">
+        <div class="mt-8">
           <v-btn
             append-icon="mdi-arrow-right"
             class="font-semibold text-sm lowercase"
-            color="#0061a4"
+            color="primary"
             variant="text"
             to="/register"
           >
