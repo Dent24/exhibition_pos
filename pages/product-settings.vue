@@ -1,13 +1,19 @@
 <template>
   <v-container>
-    <v-row class="mb-4" align="center">
+    <v-row align="end" class="mb-10">
       <v-col>
-        <h1 class="text-h4 text-primary">設定商品</h1>
+        <p class="text-display-medium font-weight-black text-black mb-2">
+          設定商品
+        </p>
+        <p class="text-grey-darken-1 mb-0">管理您的個人原創商品與庫存數量。</p>
       </v-col>
-      <v-col class="text-right">
+      <v-col cols="auto">
         <v-btn
+          class="font-weight-bold"
           color="primary"
           prepend-icon="mdi-plus"
+          size="large"
+          rounded="lg"
           @click="
             dialog = true;
             isEdit = false;
@@ -18,91 +24,176 @@
       </v-col>
     </v-row>
 
-    <v-card :loading="loading">
-      <v-table>
-        <thead>
-          <tr>
-            <th>商品名稱</th>
-            <th>原價 (NT$)</th>
-            <th>總庫存</th>
-            <th class="text-center">操作</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="item in products" :key="item.id">
-            <td class="font-weight-bold">{{ item.name }}</td>
-            <td>{{ item.original_price }}</td>
-            <td>
-              <v-chip
-                size="small"
-                :color="item.total_inventory > 0 ? 'success' : 'error'"
-              >
-                {{ item.total_inventory }}
-              </v-chip>
-            </td>
-            <td class="text-center">
-              <v-btn
-                icon="mdi-pencil"
-                variant="text"
-                color="blue"
-                @click="openEdit(item)"
-              ></v-btn>
-              <v-btn
-                icon="mdi-delete"
-                variant="text"
-                color="error"
-                @click="deleteProduct(item.id)"
-              ></v-btn>
-            </td>
-          </tr>
-          <tr v-if="products.length === 0 && !loading">
-            <td colspan="4" class="text-center py-4 text-grey">
-              目前尚無商品，點擊右上方新增
-            </td>
-          </tr>
-        </tbody>
-      </v-table>
+    <v-card class="rounded-xl border-sm" elevation="0">
+      <v-data-table
+        :headers="headers"
+        :items="productTableItems"
+        :loading="loading"
+        class="elevation-0"
+        disable-sort
+      >
+        <template v-slot:item.name="{ item }">
+          <div class="d-flex align-center py-3">
+            <v-avatar
+              :color="item.color"
+              class="mr-4"
+              rounded="lg"
+              size="40"
+              variant="tonal"
+            >
+              <v-icon :color="item.color">{{ item.icon }}</v-icon>
+            </v-avatar>
+            <div>
+              <div class="font-weight-bold text-subtitle-1">
+                {{ item.name }}
+              </div>
+              <div class="text-caption text-grey">商品編號: #{{ item.id }}</div>
+            </div>
+          </div>
+        </template>
+
+        <template v-slot:item.original_price="{ item }">
+          <span class="font-weight-medium">{{ item.priceDisplay }}</span>
+        </template>
+
+        <template v-slot:item.total_inventory="{ item }">
+          <v-chip
+            :color="item.color"
+            size="small"
+            variant="flat"
+            class="font-weight-bold"
+          >
+            {{ item.total_inventory }} 件
+          </v-chip>
+        </template>
+
+        <template v-slot:item.actions="{ item }">
+          <div class="d-flex justify-end">
+            <v-btn
+              color="blue-darken-1"
+              icon="mdi-pencil-outline"
+              size="small"
+              variant="text"
+              @click="openEdit(item)"
+            ></v-btn>
+            <v-btn
+              color="error"
+              icon="mdi-delete-outline"
+              size="small"
+              variant="text"
+              @click="deleteProduct(item.id)"
+            ></v-btn>
+          </div>
+        </template>
+
+        <template v-slot:no-data>
+          <div class="pa-10 text-grey">目前尚無商品，點擊右上方新增</div>
+        </template>
+      </v-data-table>
     </v-card>
 
-    <v-dialog v-model="dialog" max-width="500px" persistent>
-      <v-card>
-        <v-card-title class="bg-primary text-white">
-          {{ isEdit ? "修改商品資訊" : "新增個人商品" }}
-        </v-card-title>
-        <v-card-text class="pt-4">
-          <v-text-field
-            v-model="form.name"
-            label="商品名稱"
-            placeholder="例如：原創角色壓克力吊飾"
-            variant="outlined"
-          ></v-text-field>
+    <v-dialog
+      v-model="dialog"
+      max-width="560px"
+      persistent
+      transition="dialog-bottom-transition"
+    >
+      <v-card class="rounded-xl overflow-hidden elevation-24 bg-surface">
+        <div
+          class="px-6 py-5 bg-grey-lighten-5 border-b d-flex justify-space-between align-center"
+        >
+          <h3 class="text-h6 font-weight-black text-grey-darken-4">
+            {{ isEdit ? "修改商品資訊" : "新增個人商品" }}
+          </h3>
+          <v-btn
+            icon="mdi-close"
+            variant="text"
+            color="grey-darken-1"
+            @click="dialog = false"
+          ></v-btn>
+        </div>
 
-          <v-row>
+        <v-card-text class="pa-8">
+          <div class="mb-6">
+            <label
+              class="text-subtitle-2 font-weight-bold text-grey-darken-2 d-block mb-2"
+              >商品名稱</label
+            >
+            <v-text-field
+              v-model="form.name"
+              placeholder="例如：原創角色壓克力吊飾"
+              variant="filled"
+              flat
+              hide-details
+              bg-color="grey-lighten-4"
+              rounded="t-lg"
+            ></v-text-field>
+          </div>
+
+          <v-row class="mb-4">
             <v-col cols="6">
+              <label
+                class="text-subtitle-2 font-weight-bold text-grey-darken-2 d-block mb-2"
+                >原價 (NT$)</label
+              >
               <v-text-field
                 v-model.number="form.original_price"
-                label="原價 (NT$)"
                 type="number"
                 prefix="$"
-                variant="outlined"
+                variant="filled"
+                flat
+                hide-details
+                bg-color="grey-lighten-4"
+                rounded="t-lg"
               ></v-text-field>
             </v-col>
             <v-col cols="6">
+              <label
+                class="text-subtitle-2 font-weight-bold text-grey-darken-2 d-block mb-2"
+                >總庫存</label
+              >
               <v-text-field
                 v-model.number="form.total_inventory"
-                label="總庫存"
                 type="number"
-                variant="outlined"
+                variant="filled"
+                flat
+                hide-details
+                bg-color="grey-lighten-4"
+                rounded="t-lg"
               ></v-text-field>
             </v-col>
           </v-row>
+
+          <div class="bg-blue-lighten-5 pa-4 rounded-lg d-flex align-center">
+            <v-icon color="primary" class="mr-3" size="20"
+              >mdi-information</v-icon
+            >
+            <div class="text-caption text-blue-darken-4 leading-relaxed">
+              庫存設定為總發放/製作數量。若已在展覽中售出，系統會自動在結帳後扣除剩餘庫存。
+            </div>
+          </div>
         </v-card-text>
-        <v-card-actions>
+
+        <v-divider></v-divider>
+        <v-card-actions class="px-8 py-6 bg-grey-lighten-5">
           <v-spacer></v-spacer>
-          <v-btn variant="text" @click="dialog = false">取消</v-btn>
-          <v-btn color="primary" :loading="loading" @click="saveProduct"
-            >儲存商品</v-btn
+          <v-btn
+            variant="text"
+            class="font-weight-bold px-6 text-grey-darken-1"
+            @click="dialog = false"
+            >取消</v-btn
           >
+          <v-btn
+            color="primary"
+            class="font-weight-bold px-8 rounded-lg"
+            height="44"
+            variant="flat"
+            :disabled="!form.name"
+            :loading="loading"
+            @click="saveProduct"
+          >
+            儲存商品
+          </v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>
@@ -121,6 +212,17 @@ interface Product {
 const supabase = useSupabaseClient();
 const userStore = useMainStore();
 
+const headers: ReadonlyArray<{
+  title: string;
+  key: string;
+  align?: "start" | "end" | "center";
+}> = [
+  { title: "商品資訊", key: "name", align: "start" },
+  { title: "原價 (NT$)", key: "original_price", align: "start" },
+  { title: "當前庫存", key: "total_inventory", align: "start" },
+  { title: "操作", key: "actions", align: "end" },
+];
+
 // 狀態管理
 const loading = ref(false);
 const products = ref<Product[]>([]);
@@ -133,6 +235,24 @@ const form = ref({
   name: "",
   original_price: 0,
   total_inventory: 0,
+});
+
+const productTableItems = computed(() => {
+  return products.value.map((item) => ({
+    ...item,
+    // 根據庫存狀況給予不同顏色與圖示
+    color:
+      item.total_inventory > 10
+        ? "primary"
+        : item.total_inventory > 0
+        ? "orange"
+        : "error",
+    icon:
+      item.total_inventory > 0
+        ? "mdi-package-variant-closed"
+        : "mdi-package-variant-remove",
+    priceDisplay: `NT$ ${item.original_price.toLocaleString()}`,
+  }));
 });
 
 // 1. 取得資料：讀取該賣家的所有商品

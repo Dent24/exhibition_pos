@@ -91,7 +91,6 @@
         :loading="loading"
         class="elevation-0"
         disable-sort
-        color="white"
       >
         <template v-slot:item.name="{ item }">
           <div class="d-flex align-center py-3">
@@ -104,11 +103,8 @@
             >
               <v-icon :color="item.color">{{ item.icon }}</v-icon>
             </v-avatar>
-            <div>
-              <div class="font-weight-bold text-subtitle-1">
-                {{ item.name }}
-              </div>
-              <div class="text-caption text-grey">{{ item.subName }}</div>
+            <div class="font-weight-bold text-subtitle-1">
+              {{ item.name }}
             </div>
           </div>
         </template>
@@ -389,9 +385,6 @@ const exhibitionsTableItems = computed(() => {
     return {
       id: item.id,
       name: item.exhibitions.name,
-      subName: `展期：${formatDate(item.exhibitions.start_date)} - ${formatDate(
-        item.exhibitions.end_date
-      )}`,
       dateRange: `${formatDate(item.exhibitions.start_date)} ~ ${formatDate(
         item.exhibitions.end_date
       )}`,
