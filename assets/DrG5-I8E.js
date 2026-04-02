@@ -1,1 +1,0 @@
-import{_ as s,f as n,A as l,H as p,F as o,E as t,S as r}from"./C34zCdfd.js";const u={};function m(f,d){const e=r,_=n("v-main"),a=n("v-layout"),c=n("v-app");return l(),p(c,null,{default:o(()=>[t(a,null,{default:o(()=>[t(_,null,{default:o(()=>[t(e)]),_:1})]),_:1})]),_:1})}const i=s(u,[["render",m]]);export{i as default};
