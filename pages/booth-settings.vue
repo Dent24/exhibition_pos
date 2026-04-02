@@ -1,13 +1,18 @@
 <template>
   <v-container>
-    <v-row class="mb-4" align="center">
+    <v-row align="end" class="mb-10">
       <v-col>
-        <h1 class="text-h4 text-primary">設定參展攤位</h1>
+        <p class="text-display-medium font-weight-black text-black mb-2">
+          設定參展攤位
+        </p>
+        <p class="text-grey-darken-1 mb-0">管理展場平面位置與攤主進駐資訊。</p>
       </v-col>
-      <v-col class="text-right">
+      <v-col cols="auto">
         <v-btn
+          class="font-weight-bold"
           color="primary"
           prepend-icon="mdi-plus"
+          size="large"
           @click="
             dialog = true;
             isEdit = false;
@@ -18,92 +23,229 @@
       </v-col>
     </v-row>
 
+    <v-row class="mb-8">
+      <v-col cols="12" md="3">
+        <v-card class="pa-6 rounded-xl">
+          <v-icon class="mb-4" color="primary" size="32">
+            mdi-calendar-check
+          </v-icon>
+          <div class="text-display-medium font-weight-black">
+            {{ totalExhibitionsCount }}
+          </div>
+          <div class="text-title-medium font-weight-bold text-grey-darken-1">
+            目前所有活動
+          </div>
+        </v-card>
+      </v-col>
+      <v-col cols="12" md="3">
+        <v-card class="pa-6 rounded-xl">
+          <v-icon class="mb-4" color="orange-darken-3" size="32">
+            mdi-store
+          </v-icon>
+          <div class="text-display-medium font-weight-black">
+            {{ myBoothsCount }}
+          </div>
+          <div class="text-title-medium font-weight-bold text-grey-darken-1">
+            自有攤位
+          </div>
+        </v-card>
+      </v-col>
+      <v-col cols="12" md="6">
+        <v-card
+          class="pa-6 rounded-xl d-flex align-center justify-space-between h-100"
+          color="grey-darken-4"
+        >
+          <template v-if="featuredExhibition">
+            <div>
+              <div class="text-display-small font-weight-bold mb-1">
+                {{ featuredExhibition.name }}
+              </div>
+              <p class="text-title-medium text-grey-lighten-1 mb-0">
+                {{ featuredExhibition.daysText }} /
+                {{ featuredExhibition.statusText }}
+              </p>
+            </div>
+            <v-btn
+              class="font-weight-bold"
+              color="primary"
+              rounded="pill"
+              :href="featuredExhibition.link"
+              target="_blank"
+            >
+              前往官網
+            </v-btn>
+          </template>
+          <div v-else>
+            <div class="text-display-small font-weight-bold mb-1 text-grey">
+              暫無進行中活動
+            </div>
+          </div>
+        </v-card>
+      </v-col>
+    </v-row>
+
     <v-card :loading="loading">
-      <v-table>
-        <thead>
-          <tr>
-            <th>展覽名稱</th>
-            <th>展覽日期</th>
-            <th>攤位編號</th>
-            <th>地點</th>
-            <th class="text-center">操作</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="item in booths" :key="item.id">
-            <td>{{ item.exhibitions.name }}</td>
-            <td>
-              {{ formatDate(item.exhibitions.start_date) }} ~
-              {{ formatDate(item.exhibitions.end_date) }}
-            </td>
-            <td>
-              <v-chip color="secondary" size="small">{{
-                item.booth_number || "未設定"
-              }}</v-chip>
-            </td>
-            <td>{{ item.exhibitions.location }}</td>
-            <td class="text-center">
-              <template v-if="!isExhibitionEnded(item.exhibitions.end_date)">
-                <v-btn
-                  icon="mdi-pencil"
-                  variant="text"
-                  color="blue"
-                  @click="openEdit(item)"
-                ></v-btn>
-                <v-btn
-                  icon="mdi-delete"
-                  variant="text"
-                  color="error"
-                  @click="deleteBooth(item.id)"
-                ></v-btn>
-              </template>
-              <v-chip
-                v-else
+      <v-data-table
+        :headers="headers"
+        :items="exhibitionsTableItems"
+        :loading="loading"
+        class="elevation-0"
+        disable-sort
+        color="white"
+      >
+        <template v-slot:item.name="{ item }">
+          <div class="d-flex align-center py-3">
+            <v-avatar
+              :color="item.color"
+              class="mr-4"
+              rounded="lg"
+              size="40"
+              variant="tonal"
+            >
+              <v-icon :color="item.color">{{ item.icon }}</v-icon>
+            </v-avatar>
+            <div>
+              <div class="font-weight-bold text-subtitle-1">
+                {{ item.name }}
+              </div>
+              <div class="text-caption text-grey">{{ item.subName }}</div>
+            </div>
+          </div>
+        </template>
+
+        <template v-slot:item.booth="{ item }">
+          <v-chip
+            class="font-weight-bold"
+            :color="item.booth !== '未設定' ? 'success' : 'grey-lighten-4'"
+            size="small"
+            variant="flat"
+          >
+            {{ item.booth }}
+          </v-chip>
+        </template>
+
+        <template v-slot:item.location="{ item }">
+          <div class="d-flex align-center text-body-2">
+            <v-icon class="mr-1" color="primary" size="16"
+              >mdi-map-marker</v-icon
+            >
+            {{ item.location }}
+          </div>
+        </template>
+
+        <template v-slot:item.actions="{ item }">
+          <div class="d-flex justify-end">
+            <template v-if="!item.isEnded">
+              <v-btn
+                class="mr-2"
+                color="blue-darken-1"
+                icon="mdi-pencil-outline"
                 size="small"
-                variant="flat"
-                color="grey-lighten-1"
-                prepend-icon="mdi-lock"
-              >
-                已結束
-              </v-chip>
-            </td>
-          </tr>
-          <tr v-if="booths.length === 0 && !loading">
-            <td colspan="5" class="text-center py-4 text-grey">
-              目前沒有參展紀錄
-            </td>
-          </tr>
-        </tbody>
-      </v-table>
+                variant="text"
+                @click="openEdit(item.raw)"
+              ></v-btn>
+              <v-btn
+                color="error"
+                icon="mdi-delete-outline"
+                size="small"
+                variant="text"
+                @click="deleteBooth(item.id)"
+              ></v-btn>
+            </template>
+            <v-chip v-else size="x-small" color="grey-lighten-1" variant="flat"
+              >已鎖定</v-chip
+            >
+          </div>
+        </template>
+
+        <template v-slot:no-data>
+          <div class="pa-10 text-grey">目前沒有參展紀錄</div>
+        </template>
+      </v-data-table>
     </v-card>
 
-    <v-dialog v-model="dialog" max-width="500px">
-      <v-card>
-        <v-card-title>{{
-          isEdit ? "修改攤位資訊" : "新增參展展覽"
-        }}</v-card-title>
-        <v-card-text>
-          <v-select
-            v-model="form.exhibition_id"
-            :items="availableExhibitions"
-            item-title="name"
-            item-value="id"
-            label="選擇展覽"
-            :disabled="isEdit"
-          ></v-select>
-          <v-text-field
-            v-model="form.booth_number"
-            label="攤位編號 (例如: A01)"
-            hint="之後也可以隨時修改"
-            persistent-hint
-          ></v-text-field>
+    <v-dialog
+      v-model="dialog"
+      max-width="560px"
+      persistent
+      scrollable
+      transition="dialog-bottom-transition"
+    >
+      <v-card class="rounded-xl overflow-hidden elevation-24">
+        <div
+          class="px-6 py-5 bg-grey-lighten-5 border-b d-flex justify-space-between align-center"
+        >
+          <div class="font-weight-black text-grey-darken-4">
+            {{ isEdit ? "修改攤位資訊" : "新增參展展覽" }}
+          </div>
+          <v-btn
+            icon="mdi-close"
+            variant="text"
+            color="grey-darken-1"
+            density="comfortable"
+            @click="dialog = false"
+          ></v-btn>
+        </div>
+
+        <v-card-text class="pa-8">
+          <div class="mb-6">
+            <label class="font-weight-bold text-grey-darken-2 d-block mb-2">
+              選擇展覽
+            </label>
+            <v-select
+              v-model="form.exhibition_id"
+              :items="availableExhibitions"
+              item-title="name"
+              item-value="id"
+              placeholder="請選擇展覽活動"
+              variant="filled"
+              flat
+              hide-details
+              bg-color="grey-lighten-4"
+              rounded="t-lg"
+              :disabled="isEdit"
+              :no-data-text="isEdit ? '正在編輯中' : '目前無可選展覽'"
+            />
+          </div>
+
+          <div class="mb-6">
+            <label class="font-weight-bold text-grey-darken-2 d-block mb-2">
+              攤位編號
+            </label>
+            <v-text-field
+              v-model="form.booth_number"
+              placeholder="例如: A01, Hall 4-B2"
+              variant="filled"
+              flat
+              hide-details
+              bg-color="grey-lighten-4"
+              rounded="t-lg"
+            ></v-text-field>
+          </div>
         </v-card-text>
-        <v-card-actions>
+
+        <v-divider></v-divider>
+        <v-card-actions class="px-8 py-6 bg-grey-lighten-5">
           <v-spacer></v-spacer>
-          <v-btn variant="text" @click="dialog = false">取消</v-btn>
-          <v-btn color="primary" :loading="loading" @click="saveBooth"
-            >儲存</v-btn
+          <v-btn
+            variant="text"
+            class="font-weight-bold px-6 text-grey-darken-1"
+            @click="dialog = false"
+            :disabled="loading"
           >
+            取消
+          </v-btn>
+          <v-btn
+            color="primary"
+            class="font-weight-bold px-8 rounded-lg elevation-2"
+            height="44"
+            variant="flat"
+            :disabled="!form.exhibition_id"
+            :loading="loading"
+            @click="saveBooth"
+          >
+            儲存
+          </v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>
@@ -118,6 +260,7 @@ interface Exhibition {
   start_date: string;
   end_date: string;
   location: string;
+  link?: string;
 }
 
 interface BoothWithExhibition {
@@ -129,6 +272,18 @@ interface BoothWithExhibition {
 
 const supabase = useSupabaseClient();
 const userStore = useMainStore();
+
+const headers: ReadonlyArray<{
+  title: string;
+  key: string;
+  align?: "start" | "end" | "center";
+}> = [
+  { title: "展覽資訊", key: "name", align: "start" },
+  { title: "日期範圍", key: "dateRange", align: "start" },
+  { title: "攤位編號", key: "booth", align: "start" },
+  { title: "地點", key: "location", align: "start" },
+  { title: "操作", key: "actions", align: "end" },
+];
 
 // 狀態管理
 const loading = ref(false);
@@ -167,6 +322,88 @@ const availableExhibitions = computed(() => {
     const isFuture = startDate > today;
 
     return notJoined && isFuture;
+  });
+});
+const totalExhibitionsCount = computed(() => allExhibitions.value.length);
+const myBoothsCount = computed(() => booths.value.length);
+const featuredExhibition = computed(() => {
+  if (allExhibitions.value.length === 0) return null;
+
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+
+  // 將展覽分為：進行中、未來
+  const ongoing = allExhibitions.value.filter((e) => {
+    const start = new Date(e.start_date);
+    const end = new Date(e.end_date);
+    start.setHours(0, 0, 0, 0);
+    end.setHours(0, 0, 0, 0);
+    return now >= start && now <= end;
+  });
+
+  const upcoming = allExhibitions.value
+    .filter((e) => new Date(e.start_date) > now)
+    .sort(
+      (a, b) =>
+        new Date(a.start_date).getTime() - new Date(b.start_date).getTime()
+    );
+
+  // 優先取進行中，若無則取最快到的未來展覽
+  const target =
+    ongoing.length > 0 ? ongoing[0] : upcoming.length > 0 ? upcoming[0] : null;
+
+  if (!target) return null;
+
+  // 計算狀態文字與天數
+  const startDate = new Date(target.start_date);
+  const endDate = new Date(target.end_date);
+  startDate.setHours(0, 0, 0, 0);
+  endDate.setHours(0, 0, 0, 0);
+
+  let statusText = "";
+  let daysText = "";
+
+  if (now >= startDate && now <= endDate) {
+    statusText = "進行中";
+    const diffTime = endDate.getTime() - now.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    daysText = `剩餘 ${diffDays} 天`;
+  } else {
+    statusText = "即將開始";
+    const diffTime = startDate.getTime() - now.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    daysText = `倒數 ${diffDays} 天`;
+  }
+
+  return {
+    name: target.name,
+    statusText,
+    daysText,
+    link: target.link || "",
+  };
+});
+const exhibitionsTableItems = computed(() => {
+  return booths.value.map((item) => {
+    const isEnded = isExhibitionEnded(item.exhibitions.end_date);
+
+    return {
+      id: item.id,
+      name: item.exhibitions.name,
+      subName: `展期：${formatDate(item.exhibitions.start_date)} - ${formatDate(
+        item.exhibitions.end_date
+      )}`,
+      dateRange: `${formatDate(item.exhibitions.start_date)} ~ ${formatDate(
+        item.exhibitions.end_date
+      )}`,
+      booth: item.booth_number || "未設定",
+      location: item.exhibitions.location,
+      // 根據是否結束動態給予圖示與顏色
+      color: isEnded ? "grey" : "primary",
+      icon: isEnded ? "mdi-calendar-remove" : "mdi-calendar-star",
+      // 保留原始資料供操作使用
+      raw: item,
+      isEnded: isEnded,
+    };
   });
 });
 

@@ -16,7 +16,7 @@
       </v-col>
 
       <v-col class="d-flex justify-md-end" cols="12" md="4">
-        <v-card class="bg-white pa-4 d-flex align-center rounded-xl" flat>
+        <v-card class="pa-4 d-flex align-center rounded-xl" flat>
           <v-avatar class="mr-4" color="blue-lighten-4" size="44">
             <v-icon color="primary">mdi-calendar</v-icon>
           </v-avatar>
@@ -40,7 +40,7 @@
       <v-row class="mb-10">
         <v-col cols="12" md="6">
           <v-card
-            class="pa-8 rounded-xl d-flex flex-column justify-space-between overflow-hidden position-relative h-100 bg-white"
+            class="pa-8 rounded-xl d-flex flex-column justify-space-between overflow-hidden position-relative h-100"
             elevation="8"
           >
             <v-icon
@@ -82,7 +82,7 @@
           <v-row>
             <v-col cols="12" sm="6">
               <v-card
-                class="rounded-xl pa-6 d-flex flex-column justify-space-between border cursor-pointer bg-white"
+                class="rounded-xl pa-6 d-flex flex-column justify-space-between border cursor-pointer"
                 hover
                 @click="router.push('/booth-settings')"
               >
@@ -106,7 +106,7 @@
             </v-col>
             <v-col cols="12" sm="6">
               <v-card
-                class="rounded-xl pa-6 d-flex flex-column justify-space-between border cursor-pointer bg-white"
+                class="rounded-xl pa-6 d-flex flex-column justify-space-between border cursor-pointer"
                 hover
                 @click="router.push('/booth-products')"
               >
@@ -126,7 +126,7 @@
             </v-col>
             <v-col cols="12">
               <v-card
-                class="rounded-xl pa-6 d-flex align-center border cursor-pointer bg-white"
+                class="rounded-xl pa-6 d-flex align-center border cursor-pointer"
                 hover
                 @click="router.push('/sales-report')"
               >
@@ -163,7 +163,7 @@
       <v-row class="mb-10">
         <v-col cols="12" sm="4">
           <v-card
-            class="rounded-xl pa-5 d-flex flex-column justify-space-between border bg-white"
+            class="rounded-xl pa-5 d-flex flex-column justify-space-between border"
           >
             <v-avatar
               class="rounded-lg"
@@ -191,7 +191,7 @@
         </v-col>
         <v-col cols="12" sm="4">
           <v-card
-            class="rounded-xl pa-5 d-flex flex-column justify-space-between border bg-white"
+            class="rounded-xl pa-5 d-flex flex-column justify-space-between border"
           >
             <v-avatar
               class="rounded-lg"
@@ -219,7 +219,7 @@
         </v-col>
         <v-col cols="12" sm="4">
           <v-card
-            class="rounded-xl pa-5 d-flex flex-column justify-space-between border bg-white"
+            class="rounded-xl pa-5 d-flex flex-column justify-space-between border"
           >
             <v-avatar
               class="rounded-lg"
