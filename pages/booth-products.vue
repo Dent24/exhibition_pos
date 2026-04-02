@@ -1,8 +1,15 @@
 <template>
   <v-container>
-    <h1 class="text-h4 mb-6 text-primary">設定攤位商品</h1>
+    <v-row align="end" class="mb-10">
+      <v-col>
+        <p class="text-display-medium font-weight-black text-black mb-2">
+          設定攤位商品
+        </p>
+        <p class="text-grey-darken-1 mb-0">各攤位銷售品項的上架與價格設定。</p>
+      </v-col>
+    </v-row>
 
-    <v-expansion-panels multiple variant="inset">
+    <v-expansion-panels multiple variant="accordion">
       <v-expansion-panel
         v-for="booth in boothsData"
         :key="booth.id"
@@ -11,11 +18,18 @@
         <v-expansion-panel-title class="bg-grey-lighten-4">
           <v-row no-gutters align="center">
             <v-col cols="8">
-              <span class="text-h6 font-weight-bold">{{
+              <span class="font-weight-bold text-primary">{{
                 booth.exhibitions.name
               }}</span>
               <v-chip size="small" class="ml-2" variant="outlined">
                 攤位：{{ booth.booth_number || "未定" }}
+              </v-chip>
+              <v-chip
+                :color="booth.details.length ? 'primary' : 'error'"
+                class="ml-2"
+                size="small"
+              >
+                數量：{{ booth.details.length }}
               </v-chip>
             </v-col>
             <v-col cols="4" class="text-right pr-4">
@@ -33,146 +47,278 @@
                     : "準備中 (可編輯)"
                 }}
               </v-chip>
+              <v-btn
+                v-if="getStatus(booth.exhibitions.start_date) === 'editable'"
+                color="primary"
+                prepend-icon="mdi-plus"
+                size="small"
+                class="ml-4"
+                @click="openAddDialog(booth.id)"
+              >
+                上架新商品
+              </v-btn>
             </v-col>
           </v-row>
         </v-expansion-panel-title>
 
         <v-expansion-panel-text>
-          <div class="d-flex justify-end mb-4">
-            <v-btn
-              v-if="getStatus(booth.exhibitions.start_date) === 'editable'"
-              color="primary"
-              prepend-icon="mdi-plus"
-              @click="openAddDialog(booth.id)"
-            >
-              上架新商品
-            </v-btn>
-          </div>
-
           <v-data-table
-            :headers="[
-              { title: '商品名稱', key: 'product.name' },
-              { title: '狀態', key: 'status', width: '100px' },
-              { title: '原價', key: 'product.original_price' },
-              { title: '展覽售價', key: 'event_price' },
-              { title: '操作', key: 'actions', align: 'end', sortable: false },
-            ]"
+            :headers="headers"
             :items="booth.details"
             density="comfortable"
+            class="elevation-0"
+            hide-default-footer
+            disable-sort
           >
+            <template v-slot:item.product.name="{ item }">
+              <div class="d-flex align-center py-3">
+                <v-avatar
+                  :color="item.is_paid ? 'blue-lighten-5' : 'grey-lighten-4'"
+                  rounded="lg"
+                  size="36"
+                  class="mr-3"
+                >
+                  <v-icon :color="item.is_paid ? 'blue' : 'grey'" size="18">
+                    {{
+                      item.is_paid
+                        ? "mdi-check-decagram"
+                        : "mdi-package-variant"
+                    }}
+                  </v-icon>
+                </v-avatar>
+                <div
+                  class="font-weight-bold"
+                  :class="item.is_paid ? 'text-grey' : ''"
+                >
+                  {{ item.product.name }}
+                </div>
+              </div>
+            </template>
+
             <template v-slot:item.status="{ item }">
               <v-chip
                 v-if="item.is_paid"
                 color="blue"
                 size="x-small"
                 variant="flat"
-                prepend-icon="mdi-check-decagram"
+                class="font-weight-bold"
+                prepend-icon="mdi-shield-check"
               >
                 已結清
               </v-chip>
-              <v-chip v-else color="grey" size="x-small" variant="outlined">
-                待結
+              <v-chip
+                v-else
+                color="orange-darken-1"
+                size="x-small"
+                variant="tonal"
+                class="font-weight-bold"
+                prepend-icon="mdi-clock-outline"
+              >
+                銷售中
               </v-chip>
             </template>
 
             <template v-slot:item.event_price="{ item }">
+              <div class="d-flex flex-column">
+                <span
+                  :class="
+                    item.is_paid
+                      ? 'text-grey'
+                      : 'text-primary font-weight-black'
+                  "
+                >
+                  ${{ item.event_price }}
+                </span>
+                <span
+                  v-if="item.event_price !== item.product.original_price"
+                  class="text-caption text-grey text-decoration-line-through"
+                >
+                  ${{ item.product.original_price }}
+                </span>
+              </div>
+            </template>
+
+            <template v-slot:item.product.total_inventory="{ item }">
               <span
                 :class="
-                  item.is_paid ? 'text-grey' : 'text-primary font-weight-bold'
+                  item.product.total_inventory <= 5
+                    ? 'text-error font-weight-bold'
+                    : ''
                 "
               >
-                ${{ item.event_price }}
+                {{ item.product.total_inventory }} <small>pcs</small>
               </span>
             </template>
 
             <template v-slot:item.actions="{ item }">
-              <template v-if="item.is_paid">
-                <v-icon
-                  icon="mdi-lock"
-                  color="blue"
-                  size="small"
-                  class="mr-2"
-                ></v-icon>
-                <span class="text-caption text-blue">帳務已鎖定</span>
-              </template>
+              <div v-if="item.is_paid" class="d-flex align-center justify-end">
+                <v-tooltip text="賣家已結清帳務，無法修改" location="top">
+                  <template v-slot:activator="{ props }">
+                    <v-chip
+                      v-bind="props"
+                      size="x-small"
+                      color="blue-lighten-4"
+                      text-color="blue-darken-2"
+                      variant="flat"
+                      class="px-2"
+                    >
+                      <v-icon start icon="mdi-lock" size="12"></v-icon>
+                      帳務鎖定
+                    </v-chip>
+                  </template>
+                </v-tooltip>
+              </div>
 
-              <template
+              <div
                 v-else-if="
                   getStatus(booth.exhibitions.start_date) === 'editable'
                 "
+                class="d-flex justify-end"
               >
                 <v-btn
-                  icon="mdi-pencil"
+                  icon="mdi-pencil-outline"
                   variant="text"
-                  color="blue"
+                  color="blue-darken-1"
                   size="small"
                   @click="openEditDialog(booth.id, item)"
                 ></v-btn>
-
                 <v-btn
-                  icon="mdi-delete"
+                  icon="mdi-delete-outline"
                   variant="text"
                   color="error"
                   size="small"
                   @click="removeProduct(item.id)"
                 ></v-btn>
-              </template>
+              </div>
 
-              <v-icon
-                v-else
-                icon="mdi-lock-clock"
-                color="grey"
-                size="small"
-              ></v-icon>
+              <div v-else class="d-flex align-center justify-end">
+                <v-icon
+                  icon="mdi-lock-clock"
+                  color="grey-lighten-1"
+                  size="small"
+                  class="mr-1"
+                ></v-icon>
+                <span class="text-caption text-grey-lighten-1">活動中鎖定</span>
+              </div>
+            </template>
+
+            <template v-slot:no-data>
+              <div class="pa-10 text-grey">目前尚無商品，請新增商品</div>
             </template>
           </v-data-table>
         </v-expansion-panel-text>
       </v-expansion-panel>
     </v-expansion-panels>
 
-    <v-dialog v-model="addDialog" max-width="500px">
-      <v-card>
-        <v-card-title>{{
-          isEdit ? "修改展覽售價" : "上架商品到攤位"
-        }}</v-card-title>
-        <v-card-text>
-          <v-select
-            v-model="eventPriceForm.product_id"
-            :items="displayProducts"
-            item-title="name"
-            item-value="id"
-            :label="isEdit ? '正在編輯商品' : '選擇尚未上架的商品'"
-            variant="outlined"
-            :disabled="isEdit"
-            :no-data-text="
-              rawAuthorizedProducts.length === 0
-                ? '目前無授權商品'
-                : '所有授權商品皆已在此攤位上架'
-            "
-          >
-            <template v-slot:item="{ props, item }">
-              <v-list-item
-                v-bind="props"
-                :subtitle="`庫存: ${item.total_inventory} | 賣家: ${item.seller?.nickname}`"
-              ></v-list-item>
-            </template>
-          </v-select>
+    <v-dialog
+      v-model="addDialog"
+      max-width="560px"
+      persistent
+      transition="dialog-bottom-transition"
+    >
+      <v-card class="rounded-xl overflow-hidden elevation-24 bg-surface">
+        <div
+          class="px-6 py-5 bg-grey-lighten-5 border-b d-flex justify-space-between align-center"
+        >
+          <h3 class="font-weight-black text-grey-darken-4">
+            {{ isEdit ? "修改展覽售價" : "上架商品到攤位" }}
+          </h3>
+          <v-btn
+            icon="mdi-close"
+            variant="text"
+            color="grey-darken-1"
+            @click="addDialog = false"
+          ></v-btn>
+        </div>
 
-          <v-text-field
-            v-model.number="eventPriceForm.price"
-            label="展覽售價"
-            prefix="$"
-            type="number"
-            variant="outlined"
-            class="mt-4"
-            hint="設定此商品在該場展覽的特別售價"
-            persistent-hint
-          ></v-text-field>
+        <v-card-text class="pa-8">
+          <div class="mb-6">
+            <label
+              class="text-subtitle-2 font-weight-bold text-grey-darken-2 d-block mb-2"
+            >
+              {{ isEdit ? "正在編輯商品" : "選擇尚未上架的商品" }}
+            </label>
+            <v-select
+              v-model="eventPriceForm.product_id"
+              :items="displayProducts"
+              item-title="name"
+              item-value="id"
+              placeholder="請選擇授權商品"
+              variant="filled"
+              flat
+              hide-details
+              bg-color="grey-lighten-4"
+              rounded="t-lg"
+              :disabled="isEdit"
+              :no-data-text="
+                rawAuthorizedProducts.length === 0
+                  ? '目前無授權商品'
+                  : '所有授權商品皆已在此攤位上架'
+              "
+            >
+              <template v-slot:item="{ props, item }">
+                <v-list-item
+                  v-bind="props"
+                  :subtitle="`庫存: ${item.total_inventory} | 賣家: ${item.seller?.nickname}`"
+                >
+                  <template v-slot:prepend>
+                    <v-icon color="grey-darken-1">mdi-package-variant</v-icon>
+                  </template>
+                </v-list-item>
+              </template>
+            </v-select>
+          </div>
+
+          <div class="mb-6">
+            <label
+              class="text-subtitle-2 font-weight-bold text-grey-darken-2 d-block mb-2"
+            >
+              展覽售價 (NT$)
+            </label>
+            <v-text-field
+              v-model.number="eventPriceForm.price"
+              type="number"
+              prefix="$"
+              placeholder="請輸入展場售價"
+              variant="filled"
+              flat
+              hide-details
+              bg-color="grey-lighten-4"
+              rounded="t-lg"
+            ></v-text-field>
+          </div>
+
+          <div class="bg-blue-lighten-5 pa-4 rounded-lg d-flex align-start">
+            <v-icon color="primary" class="mr-3 mt-1" size="20"
+              >mdi-tag-outline</v-icon
+            >
+            <div class="text-caption text-blue-darken-4 leading-relaxed">
+              <strong>定價提示：</strong>
+              您可以針對不同展覽設定不同的售價。此價格僅會影響該攤位的 POS
+              結帳金額，不會修改原始商品的設定價格。
+            </div>
+          </div>
         </v-card-text>
-        <v-card-actions>
+
+        <v-divider></v-divider>
+        <v-card-actions class="px-8 py-6 bg-grey-lighten-5">
           <v-spacer></v-spacer>
-          <v-btn variant="text" @click="addDialog = false">取消</v-btn>
-          <v-btn color="primary" :loading="loading" @click="saveProduct">
+          <v-btn
+            variant="text"
+            class="font-weight-bold px-6 text-grey-darken-1"
+            @click="addDialog = false"
+          >
+            取消
+          </v-btn>
+          <v-btn
+            color="primary"
+            class="font-weight-bold px-8 rounded-lg"
+            height="44"
+            variant="flat"
+            :disabled="!eventPriceForm.product_id"
+            :loading="loading"
+            @click="saveProduct"
+          >
             {{ isEdit ? "更新售價" : "確認上架" }}
           </v-btn>
         </v-card-actions>
@@ -184,6 +330,29 @@
 <script setup lang="ts">
 const supabase = useSupabaseClient();
 const userStore = useMainStore();
+
+const headers: ReadonlyArray<{
+  title: string;
+  key: string;
+  width?: string;
+  align?: "start" | "end" | "center";
+}> = [
+  { title: "商品資訊", key: "product.name", align: "start" },
+  {
+    title: "對帳狀態",
+    key: "status",
+    width: "120px",
+    align: "center",
+  },
+  { title: "原價", key: "product.original_price", align: "start" },
+  { title: "現場售價", key: "event_price", align: "start" },
+  {
+    title: "目前庫存",
+    key: "product.total_inventory",
+    align: "center",
+  },
+  { title: "操作", key: "actions", align: "end" },
+];
 
 // 狀態管理
 const loading = ref(false);
@@ -246,7 +415,7 @@ const fetchAllData = async () => {
         exhibitions:exhibition_id ( id, name, start_date, end_date ),
         details:Exhibition_Product_Details (
           id, event_price, is_paid,
-          product:product_id ( id, name, original_price )
+          product:product_id ( id, name, original_price, total_inventory )
         )
       `
       )

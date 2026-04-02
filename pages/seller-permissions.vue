@@ -1,8 +1,11 @@
 <template>
   <v-container>
-    <v-row class="mb-4" align="center">
+    <v-row align="end" class="mb-10">
       <v-col>
-        <h1 class="text-h4 text-primary">設定可售攤主</h1>
+        <p class="text-display-medium font-weight-black text-black mb-2">
+          設定可售攤主
+        </p>
+        <p class="text-grey-darken-1 mb-0">授權特定攤主販售您的商品</p>
       </v-col>
     </v-row>
 
@@ -19,7 +22,12 @@
               {{ product.name }}
             </v-col>
             <v-col cols="6" class="text-right">
-              <v-chip size="small" variant="tonal" color="info" class="mr-2">
+              <v-chip
+                size="small"
+                variant="tonal"
+                :color="product.permissions.length ? 'info' : 'error'"
+                class="mr-4"
+              >
                 {{ product.permissions.length }} 位授權
               </v-chip>
               <v-btn
@@ -37,47 +45,54 @@
         </v-expansion-panel-title>
 
         <v-expansion-panel-text>
-          <v-table density="comfortable">
-            <thead>
-              <tr>
-                <th class="text-left">攤主暱稱</th>
-                <th class="text-center">目前狀態</th>
-                <th class="text-right">操作</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="per in product.permissions" :key="per.id">
-                <td>{{ per.owner_nickname }}</td>
-                <td class="text-center">
-                  <v-chip
-                    :color="per.enable ? 'success' : 'grey'"
-                    size="x-small"
-                    variant="flat"
-                  >
-                    {{ per.enable ? "已啟用" : "已停用" }}
-                  </v-chip>
-                </td>
-                <td class="text-right">
-                  <v-btn
-                    :color="per.enable ? 'error' : 'success'"
-                    size="small"
-                    variant="outlined"
-                    :prepend-icon="
-                      per.enable ? 'mdi-link-off' : 'mdi-link-variant'
-                    "
-                    @click="togglePermission(per)"
-                  >
-                    {{ per.enable ? "取消授權" : "恢復授權" }}
-                  </v-btn>
-                </td>
-              </tr>
-              <tr v-if="product.permissions.length === 0">
-                <td colspan="3" class="text-center py-4 text-grey">
-                  尚未授權給任何攤主
-                </td>
-              </tr>
-            </tbody>
-          </v-table>
+          <v-data-table
+            :headers="permissionHeaders"
+            :items="product.permissions"
+            density="comfortable"
+            class="elevation-0"
+            hide-default-footer
+            disable-sort
+          >
+            <template v-slot:item.enable="{ item }">
+              <v-chip
+                :color="item.enable ? 'success' : 'grey-lighten-1'"
+                :prepend-icon="
+                  item.enable ? 'mdi-check-circle' : 'mdi-minus-circle'
+                "
+                size="x-small"
+                variant="flat"
+                class="font-weight-bold"
+              >
+                {{ item.enable ? "已啟用" : "已停用" }}
+              </v-chip>
+            </template>
+
+            <template v-slot:item.actions="{ item }">
+              <v-btn
+                :color="item.enable ? 'error' : 'success'"
+                size="small"
+                :variant="item.enable ? 'text' : 'tonal'"
+                :prepend-icon="
+                  item.enable ? 'mdi-link-off' : 'mdi-link-variant'
+                "
+                class="font-weight-bold"
+                @click="togglePermission(item)"
+              >
+                {{ item.enable ? "取消授權" : "恢復授權" }}
+              </v-btn>
+            </template>
+
+            <template v-slot:no-data>
+              <div class="pa-6 text-center text-grey text-body-2">
+                <v-icon
+                  icon="mdi-account-off-outline"
+                  class="mb-2"
+                  size="large"
+                ></v-icon>
+                <p>尚未授權給任何攤主</p>
+              </div>
+            </template>
+          </v-data-table>
         </v-expansion-panel-text>
       </v-expansion-panel>
     </v-expansion-panels>
@@ -93,27 +108,28 @@
       <div class="mt-4 text-grey">找不到符合條件的商品或授權紀錄</div>
     </v-card>
 
-    <v-dialog v-model="addDialog" max-width="400px">
-      <v-card>
-        <v-card-title class="d-flex align-center">
-          新增授權對象
-          <v-spacer></v-spacer>
+    <v-dialog
+      v-model="addDialog"
+      max-width="400px"
+      persistent
+      transition="dialog-bottom-transition"
+    >
+      <v-card class="rounded-xl overflow-hidden elevation-24">
+        <div
+          class="px-6 bg-grey-lighten-5 border-b d-flex justify-space-between align-center"
+        >
+          <h3 class="font-weight-black text-grey-darken-4">新增授權對象</h3>
           <v-btn
             icon="mdi-close"
             variant="text"
+            color="grey-darken-1"
             @click="addDialog = false"
           ></v-btn>
-        </v-card-title>
+        </div>
 
         <v-divider></v-divider>
 
         <v-card-text style="max-height: 400px; overflow-y: auto">
-          <div class="mb-2 text-subtitle-2 text-grey">
-            商品：<span class="text-white font-weight-bold">{{
-              activeProduct?.name
-            }}</span>
-          </div>
-
           <v-list v-if="availableOwners.length > 0">
             <v-list-item
               v-for="owner in availableOwners"
@@ -160,6 +176,16 @@ interface ProductWithPermissions {
 
 const supabase = useSupabaseClient();
 const userStore = useMainStore();
+
+const permissionHeaders: ReadonlyArray<{
+  title: string;
+  key: string;
+  align?: "start" | "end" | "center";
+}> = [
+  { title: "攤主暱稱", key: "owner_nickname", align: "start" },
+  { title: "目前狀態", key: "enable", align: "center" },
+  { title: "操作", key: "actions", align: "end" },
+];
 
 const loading = ref(false);
 const search = ref("");
