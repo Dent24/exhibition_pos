@@ -1,7 +1,7 @@
 <template>
   <v-layout>
-    <v-app-bar color="primary" density="compact">
-      <v-app-bar-title>POS 現場結帳</v-app-bar-title>
+    <v-app-bar color="primary" density="compact" elevation="1">
+      <v-app-bar-title class="font-weight-black">POS 現場結帳</v-app-bar-title>
       <v-spacer></v-spacer>
       <v-progress-linear
         v-if="loading"
@@ -19,10 +19,11 @@
           :items="booths"
           item-title="exhibition_name"
           item-value="id"
-          label="選擇攤位"
-          variant="outlined"
-          density="compact"
-          bg-color="white"
+          label="選擇目前所在的攤位"
+          variant="solo"
+          density="comfortable"
+          flat
+          class="mb-2"
         ></v-select>
 
         <v-row dense>
@@ -42,32 +43,30 @@
               }"
               class="pa-3 text-center rounded-lg border"
               variant="flat"
-              style="position: relative; overflow: hidden"
+              style="position: relative; overflow: hidden; min-height: 110px"
             >
               <div
-                class="text-truncate font-weight-bold"
+                class="font-weight-bold"
                 :class="item.is_paid ? 'text-blue-darken-3' : ''"
               >
                 {{ item.product.name }}
               </div>
-
               <div
                 :class="item.is_paid ? 'text-blue-darken-1' : 'text-primary'"
-                class="font-weight-bold"
+                class="text-h6 font-weight-black"
               >
                 ${{ item.event_price }}
               </div>
-
-              <div class="mt-1" style="font-size: 0.75rem">
+              <div class="mt-1" style="font-size: 0.7rem">
                 <template v-if="item.is_paid">
-                  <v-icon size="small" color="blue-darken-2" class="mr-1"
-                    >mdi-cash-lock</v-icon
-                  >
-                  <span class="text-blue-darken-2 font-weight-bold"
-                    >帳務已結清</span
+                  <v-chip
+                    size="x-small"
+                    color="blue-darken-2"
+                    variant="flat"
+                    label
+                    >已結清</v-chip
                   >
                 </template>
-
                 <template v-else>
                   <span
                     v-if="item.product.total_inventory > 0"
@@ -78,7 +77,6 @@
                   <span v-else class="text-error font-weight-bold">已售罄</span>
                 </template>
               </div>
-
               <v-overlay
                 contained
                 :model-value="item.is_paid"
@@ -95,61 +93,83 @@
       </v-container>
     </v-main>
 
-    <v-footer app class="pa-0 border-t">
+    <v-footer app class="pa-0 border-t shadow-lg">
       <v-btn
         block
         color="grey-darken-4"
-        height="60"
+        height="64"
         @click="showCart = true"
-        class="rounded-0"
+        class="rounded-0 text-h6"
         :disabled="loading"
       >
         <v-badge
           :content="cart.length"
           :model-value="cart.length > 0"
           color="red"
+          offset-x="10"
         >
-          <v-icon start icon="mdi-cart"></v-icon>
+          <v-icon start icon="mdi-cart-outline"></v-icon>
         </v-badge>
-        查看清單 (共 ${{ totalAmount }})
+        結帳清單 (${{ totalAmount }})
       </v-btn>
     </v-footer>
 
     <v-bottom-sheet v-model="showCart">
-      <v-card class="rounded-t-xl">
-        <v-toolbar title="結帳清單" density="compact">
-          <v-btn icon="mdi-close" @click="showCart = false"></v-btn>
+      <v-card class="rounded-t-xl overflow-hidden">
+        <v-toolbar color="white" density="comfortable" class="border-b px-2">
+          <v-btn
+            icon="mdi-chevron-down"
+            variant="text"
+            @click="showCart = false"
+          ></v-btn>
+          <v-toolbar-title class="text-subtitle-1 font-weight-bold"
+            >結帳明細</v-toolbar-title
+          >
+          <v-spacer></v-spacer>
+          <v-btn variant="text" color="error" size="small" @click="cart = []"
+            >清空</v-btn
+          >
         </v-toolbar>
 
-        <v-list style="max-height: 50vh" class="overflow-y-auto">
+        <v-list style="max-height: 40vh" class="overflow-y-auto px-2">
           <v-list-item
             v-if="cart.length === 0"
-            class="text-center py-10 text-grey"
+            class="text-center py-12 text-grey"
           >
-            清單空空如也，請先加入商品
+            尚未加入任何商品
           </v-list-item>
 
-          <v-list-item v-for="(c, i) in cart" :key="i">
-            <v-list-item-title class="font-weight-bold">{{
-              c.product.name
-            }}</v-list-item-title>
-            <v-list-item-subtitle>
-              ${{ c.event_price }} / 剩餘: {{ c.product.total_inventory }}
-            </v-list-item-subtitle>
+          <v-list-item v-for="(c, i) in cart" :key="i" class="px-2">
+            <template v-slot:title>
+              <div class="font-weight-bold text-body-1">
+                {{ c.product.name }}
+              </div>
+            </template>
+            <template v-slot:subtitle>
+              <span class="text-primary font-weight-bold"
+                >${{ c.event_price }}</span
+              >
+            </template>
 
             <template v-slot:append>
-              <div class="d-flex align-center">
+              <div
+                class="d-flex align-center bg-grey-lighten-4 rounded-pill px-1"
+              >
                 <v-btn
                   icon="mdi-minus"
                   size="x-small"
-                  variant="tonal"
+                  variant="text"
                   @click="c.quantity > 1 ? c.quantity-- : cart.splice(i, 1)"
                 ></v-btn>
-                <span class="mx-3 font-weight-bold">{{ c.quantity }}</span>
+                <span
+                  class="mx-2 font-weight-black"
+                  style="min-width: 20px; text-align: center"
+                  >{{ c.quantity }}</span
+                >
                 <v-btn
                   icon="mdi-plus"
                   size="x-small"
-                  variant="tonal"
+                  variant="text"
                   color="primary"
                   :disabled="c.quantity >= c.product.total_inventory"
                   @click="
@@ -163,27 +183,52 @@
 
         <v-divider></v-divider>
 
-        <div class="pa-4 bg-white">
-          <div class="d-flex justify-space-between mb-4 text-subtitle-1">
-            <span>總金額</span>
-            <span class="text-h6 font-weight-black text-success"
+        <div class="pa-6 bg-white">
+          <div class="d-flex justify-space-between align-center mb-6">
+            <span class="text-h6 font-weight-bold">應付總計</span>
+            <span class="text-h4 font-weight-black text-success"
               >${{ totalAmount }}</span
             >
           </div>
-          <v-btn
-            block
-            color="success"
-            size="large"
-            class="rounded-pill"
-            :loading="loading"
-            :disabled="cart.length === 0"
-            @click="checkout"
-          >
-            確認結帳
-          </v-btn>
+
+          <v-row no-gutters class="mt-2">
+            <v-col cols="6" class="pr-1">
+              <v-btn
+                block
+                color="blue-darken-2"
+                height="60"
+                @click="checkout('現金')"
+                >現金結帳</v-btn
+              >
+            </v-col>
+            <v-col cols="6" class="pl-1">
+              <v-btn
+                block
+                color="green-darken-1"
+                height="60"
+                @click="checkout('Line Pay')"
+                >Line Pay</v-btn
+              >
+            </v-col>
+          </v-row>
         </div>
       </v-card>
     </v-bottom-sheet>
+
+    <v-btn
+      icon="mdi-home"
+      color="grey-darken-3"
+      size="large"
+      elevation="8"
+      position="fixed"
+      location="bottom left"
+      class="ma-6"
+      style="z-index: 100"
+      to="/"
+    >
+      <v-icon size="32">mdi-home</v-icon>
+      <v-tooltip activator="parent" location="top">回到首頁</v-tooltip>
+    </v-btn>
   </v-layout>
 </template>
 
@@ -198,6 +243,7 @@ const {
   checkout,
   loading,
 } = usePosSystem();
+
 const showCart = ref(false);
 
 definePageMeta({

@@ -122,22 +122,51 @@
           </template>
         </v-list-item>
       </v-list>
-      <div class="pa-6 border-t-lg">
-        <div class="d-flex justify-space-between text-h4 mb-4">
-          <span>總金額</span>
-          <span class="text-success font-weight-black">${{ totalAmount }}</span>
+      <div class="pa-6 border-t-lg bg-grey-lighten-5">
+        <div class="d-flex justify-space-between align-end mb-4">
+          <span class="text-h5 font-weight-bold">總金額</span>
+          <span class="text-h3 text-success font-weight-black"
+            >${{ totalAmount }}</span
+          >
         </div>
-        <v-btn
-          block
-          color="success"
-          size="x-large"
-          :loading="loading"
-          :disabled="cart.length === 0"
-          @click="checkout"
-          >確認結帳</v-btn
-        >
+
+        <v-row no-gutters class="mt-2">
+          <v-col cols="6" class="pr-1">
+            <v-btn
+              block
+              color="blue-darken-2"
+              height="60"
+              @click="checkout('現金')"
+              >現金結帳</v-btn
+            >
+          </v-col>
+          <v-col cols="6" class="pl-1">
+            <v-btn
+              block
+              color="green-darken-1"
+              height="60"
+              @click="checkout('Line Pay')"
+              >Line Pay</v-btn
+            >
+          </v-col>
+        </v-row>
       </div>
     </v-col>
+
+    <v-btn
+      icon="mdi-home"
+      color="grey-darken-3"
+      size="large"
+      elevation="8"
+      position="fixed"
+      location="bottom left"
+      class="ma-6"
+      style="z-index: 100"
+      to="/"
+    >
+      <v-icon size="32">mdi-home</v-icon>
+      <v-tooltip activator="parent" location="top">回到首頁</v-tooltip>
+    </v-btn>
   </v-row>
 </template>
 

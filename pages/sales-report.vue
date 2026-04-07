@@ -120,6 +120,7 @@
                         <tr>
                           <th>銷售時間</th>
                           <th>數量</th>
+                          <th>支付方式</th>
                           <th class="text-right">操作</th>
                         </tr>
                       </thead>
@@ -129,6 +130,7 @@
                             {{ new Date(record.created_at).toLocaleString() }}
                           </td>
                           <td>{{ record.quantity }}</td>
+                          <td>{{ record.method }}</td>
                           <td class="text-right">
                             <v-btn
                               v-if="!item.is_paid"
@@ -191,14 +193,19 @@
             <template v-slot:item="{ props, item }">
               <v-list-item
                 v-bind="props"
-                :disabled="item.is_paid"
+                :disabled="item.is_paid || !item.product.total_inventory"
                 :subtitle="
                   item.is_paid
                     ? '⚠️ 賣家已收款鎖定'
+                    : !item.product.total_inventory
+                    ? '⚠️ 無庫存'
                     : `展覽售價: $${item.event_price}`
                 "
               >
-                <template v-slot:append v-if="item.is_paid">
+                <template
+                  v-slot:append
+                  v-if="item.is_paid || !item.product.total_inventory"
+                >
                   <v-icon color="blue">mdi-lock</v-icon>
                 </template>
               </v-list-item>
@@ -213,6 +220,26 @@
             variant="outlined"
             class="mt-2"
           ></v-text-field>
+
+          <v-btn-toggle
+            v-model="saleForm.method"
+            color="primary"
+            mandatory
+            variant="outlined"
+            class="d-flex w-100"
+            density="comfortable"
+            rounded="lg"
+          >
+            <v-btn value="現金" class="flex-grow-1" prepend-icon="mdi-cash"
+              >現金</v-btn
+            >
+            <v-btn
+              value="Line Pay"
+              class="flex-grow-1"
+              prepend-icon="mdi-wallet"
+              >Line Pay</v-btn
+            >
+          </v-btn-toggle>
         </v-card-text>
         <v-card-actions>
           <v-spacer></v-spacer>
@@ -239,6 +266,7 @@ const addDialog = ref(false);
 const saleForm = ref({
   detail_id: null as number | null,
   quantity: 1,
+  method: "現金",
 });
 
 // 專門給 Dialog 使用的暫存狀態
@@ -281,10 +309,11 @@ const fetchSalesReport = async () => {
           event_price, 
           is_paid,
           product:product_id ( 
-            name, 
+            name,
+            total_inventory,
             seller:seller_id ( id, nickname ) 
           ),
-          sales:Sales_Records ( id, quantity, created_at )
+          sales:Sales_Records ( id, quantity, created_at, method )
         )
       `
       )
@@ -363,6 +392,7 @@ const saveSale = async () => {
     const { error } = await supabase.rpc("manual_add_sale", {
       p_detail_id: saleForm.value.detail_id,
       p_quantity: saleForm.value.quantity,
+      p_method: saleForm.value.method,
     });
 
     if (error) {
@@ -416,6 +446,7 @@ const resetForm = () => {
   saleForm.value = {
     detail_id: null,
     quantity: 1,
+    method: "現金",
   };
 };
 
