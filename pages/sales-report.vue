@@ -230,11 +230,14 @@
             density="comfortable"
             rounded="lg"
           >
-            <v-btn value="現金" class="flex-grow-1" prepend-icon="mdi-cash"
+            <v-btn
+              value="現金 - 手動新增"
+              class="flex-grow-1"
+              prepend-icon="mdi-cash"
               >現金</v-btn
             >
             <v-btn
-              value="Line Pay"
+              value="Line Pay - 手動新增"
               class="flex-grow-1"
               prepend-icon="mdi-wallet"
               >Line Pay</v-btn
