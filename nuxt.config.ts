@@ -4,7 +4,7 @@ export default defineNuxtConfig({
     baseURL: '/exhibition_pos/', 
     buildAssetsDir: 'assets', // 避免 GitHub Pages 阻擋底線開頭的資料夾
   },
-  modules: ['@pinia/nuxt', '@nuxtjs/supabase'],
+  modules: ['@pinia/nuxt', '@nuxtjs/supabase', 'pinia-plugin-persistedstate/nuxt'],
   build: {
     transpile: ['vuetify'],
   },
@@ -16,10 +16,6 @@ export default defineNuxtConfig({
     },
   },
   supabase: {
-    redirectOptions: {
-      login: '/login',
-      callback: '/confirm',
-      exclude: ['/register'],
-    }
+    redirect: false
   }
 })

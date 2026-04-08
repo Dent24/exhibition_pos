@@ -65,6 +65,7 @@
 <script setup lang="ts">
 const mainStore = useMainStore();
 const supabase = useSupabaseClient();
+const user = useSupabaseUser();
 const router = useRouter();
 const route = useRoute();
 
@@ -137,6 +138,16 @@ watch(
       open.value = ["Owner", "Seller"];
     }
   }
+);
+
+watch(
+  user,
+  (newUser, oldUser) => {
+    if (!newUser && !mainStore.isLoggedIn) {
+      router.push("/login");
+    }
+  },
+  { immediate: true }
 );
 </script>
 

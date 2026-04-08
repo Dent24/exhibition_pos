@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia'
+import persistedState from 'pinia-plugin-persistedstate'
 
 // 定義資料庫中 Users 表的結構
 interface UserProfile {
@@ -28,16 +29,14 @@ export const useMainStore = defineStore('main', {
     // 從資料庫同步最新的使用者資料
     async fetchProfile() {
       const supabase = useSupabaseClient()
-      const user = useSupabaseUser()
-
-      if (!user.value) return
+      const { data: { session } } = await supabase.auth.getSession();
 
       this.loading = true
       try {
         const { data, error } = await supabase
           .from('Users')
           .select("id, nickname, is_owner, is_seller")
-          .eq("Uid", user.value.sub)
+          .eq("Uid", session?.user.id)
           .single()
 
         if (error) throw error
@@ -55,5 +54,11 @@ export const useMainStore = defineStore('main', {
     // 快速判斷權限的 Getter
     canManageBooth: (state) => state.profile?.is_owner || false,
     canSellProduct: (state) => state.profile?.is_seller || false
+  },
+
+  persist: {
+    key: 'pos-user-store', // 自定義儲存的 Key 名稱
+    storage: persistedState.localStorage, // 儲存在 localStorage
+    paths: ['profile'] // 只持久化 profile，loading 不需要存
   }
 })

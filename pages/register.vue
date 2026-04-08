@@ -220,6 +220,10 @@ const handleRegister = async (): Promise<void> => {
     loading.value = false;
   }
 };
+
+onMounted(async () => {
+  await supabase.auth.signOut();
+});
 </script>
 
 <style scoped>
