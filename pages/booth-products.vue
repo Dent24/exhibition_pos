@@ -283,6 +283,7 @@
       max-width="560px"
       persistent
       transition="dialog-bottom-transition"
+      scrollable
     >
       <v-card class="rounded-xl overflow-hidden elevation-24">
         <div
@@ -374,6 +375,43 @@
               bg-color="grey-lighten-4"
             ></v-text-field>
           </div>
+
+          <div
+            v-if="isBundleMode && bundleForm.selectedProducts.length > 0"
+            class="mt-4"
+          >
+            <label
+              class="text-subtitle-2 font-weight-bold text-grey-darken-2 d-block mb-2"
+            >
+              拆帳權重設定 (預設按原價比例)
+            </label>
+            <v-list
+              density="compact"
+              bg-color="grey-lighten-5"
+              class="rounded-lg"
+            >
+              <v-list-item
+                v-for="pid in bundleForm.selectedProducts"
+                :key="pid"
+              >
+                <v-row align="center" no-gutters>
+                  <v-col cols="6" class="text-caption">
+                    {{ rawAuthorizedProducts.find((p) => p.id === pid)?.name }}
+                  </v-col>
+                  <v-col cols="6">
+                    <v-text-field
+                      v-model.number="bundleForm.weights[pid]"
+                      type="number"
+                      density="compact"
+                      hide-details
+                      variant="outlined"
+                      prefix="W"
+                    ></v-text-field>
+                  </v-col>
+                </v-row>
+              </v-list-item>
+            </v-list>
+          </div>
         </v-card-text>
 
         <v-card-actions class="px-8 py-6 bg-grey-lighten-5">
@@ -420,7 +458,11 @@ const isBundleMode = ref(false);
 const currentDetailId = ref<number | null>(null);
 
 const eventPriceForm = ref({ product_id: null as number | null, price: 0 });
-const bundleForm = ref({ name: "", selectedProducts: [] as number[] });
+const bundleForm = ref({
+  name: "",
+  selectedProducts: [] as number[],
+  weights: {} as Record<number, number>,
+});
 
 // --- 修正後的邏輯函式 ---
 
@@ -462,17 +504,20 @@ const fetchAllData = async () => {
       .from("Exhibition_Booths")
       .select(
         `
-        id, booth_number,
-        exhibitions:exhibition_id ( id, name, start_date, end_date ),
-        details:Exhibition_Product_Details (
-          id, event_price, is_paid,
-          product:product_id ( id, name, original_price, total_inventory ),
-          bundle:bundle_id ( 
-            id, name, 
-            items:Bundle_Items ( product:product_id ( id, name, original_price, total_inventory ) ) 
-          )
+      id, booth_number,
+      exhibitions:exhibition_id ( id, name, start_date, end_date ),
+      details:Exhibition_Product_Details (
+        id, event_price, is_paid,
+        product:product_id ( id, name, original_price, total_inventory ),
+        bundle:bundle_id ( 
+          id, name, 
+          items:Bundle_Items ( 
+            share_weight, 
+            product:product_id ( id, name, original_price, total_inventory ) 
+          ) 
         )
-      `
+      )
+    `
       )
       .eq("owner_id", userStore.profile.id);
     if (error) throw error;
@@ -522,14 +567,23 @@ const openEditDialog = (boothId: number, item: any) => {
   eventPriceForm.value.price = item.event_price;
 
   if (item.bundle) {
-    // 進入組合包編輯模式 (目前僅支援改價)
     isBundleMode.value = true;
     bundleForm.value.name = item.bundle.name;
-    bundleForm.value.selectedProducts = item.bundle.items.map(
-      (i: any) => i.product.id
-    );
+
+    // 關鍵：從資料庫回傳的 bundle.items 中提取商品 ID 與對應的權重
+    const selectedPids: number[] = [];
+    const weights: Record<number, number> = {};
+
+    item.bundle.items.forEach((i: any) => {
+      const pid = i.product.id;
+      selectedPids.push(pid);
+      // 帶入該商品在該組合包中設定的權重
+      weights[pid] = i.share_weight || i.product.original_price;
+    });
+
+    bundleForm.value.selectedProducts = selectedPids;
+    bundleForm.value.weights = weights;
   } else {
-    // 進入單品編輯模式
     isBundleMode.value = false;
     eventPriceForm.value.product_id = item.product.id;
   }
@@ -545,41 +599,86 @@ const saveItem = async () => {
   try {
     let finalBundleId = null;
 
-    // 只有在「非編輯模式」的新增情況下才建立組合包
-    if (isBundleMode.value && !isEdit.value) {
-      const { data: bData, error: bErr } = await supabase
-        .from("Product_Bundles")
-        .insert({ booth_id: activeBoothId.value, name: bundleForm.value.name })
-        .select()
-        .single();
-      if (bErr) throw bErr;
-      const items = bundleForm.value.selectedProducts.map((pid) => ({
-        bundle_id: bData.id,
-        product_id: pid,
-      }));
-      await supabase.from("Bundle_Items").insert(items);
-      finalBundleId = bData.id;
+    if (isBundleMode.value) {
+      if (isEdit.value) {
+        // --- 編輯組合包模式 ---
+        // 1. 取得目前正在編輯的 detail 資料
+        const detail = boothsData.value
+          .flatMap((b) => b.details)
+          .find((d) => d.id === currentDetailId.value);
+        finalBundleId = detail?.bundle.id;
+
+        if (finalBundleId) {
+          // 2. 更新組合包名稱
+          const { error: nameErr } = await supabase
+            .from("Product_Bundles")
+            .update({ name: bundleForm.value.name })
+            .eq("id", finalBundleId);
+          if (nameErr) throw nameErr;
+
+          // 3. 更新各個項目的權重
+          // 使用 Promise.all 確保所有更新都完成，並檢查 pid 是否為 Number
+          const updatePromises = bundleForm.value.selectedProducts.map(
+            (pid) => {
+              const weight = bundleForm.value.weights[pid];
+              console.log(
+                `正在更新 Bundle:${finalBundleId}, Product:${pid}, Weight:${weight}`
+              ); // 除錯用
+
+              return supabase
+                .from("Bundle_Items")
+                .update({ share_weight: weight })
+                .eq("bundle_id", finalBundleId)
+                .eq("product_id", Number(pid)); // 強制轉型確保比對正確
+            }
+          );
+
+          const results = await Promise.all(updatePromises);
+
+          // 檢查是否有任何一個更新出錯
+          const firstError = results.find((r) => r.error)?.error;
+          if (firstError) throw firstError;
+        }
+      } else {
+        // --- 新增組合包模式 (維持不變) ---
+        const { data: bData, error: bErr } = await supabase
+          .from("Product_Bundles")
+          .insert({
+            booth_id: activeBoothId.value,
+            name: bundleForm.value.name,
+          })
+          .select()
+          .single();
+        if (bErr) throw bErr;
+
+        const items = bundleForm.value.selectedProducts.map((pid) => ({
+          bundle_id: bData.id,
+          product_id: Number(pid),
+          share_weight: bundleForm.value.weights[pid] || 0,
+        }));
+        const { error: iErr } = await supabase
+          .from("Bundle_Items")
+          .insert(items);
+        if (iErr) throw iErr;
+
+        finalBundleId = bData.id;
+      }
     }
 
-    if (isEdit.value) {
-      // 修改僅更新現場售價
-      await supabase
-        .from("Exhibition_Product_Details")
-        .update({ event_price: eventPriceForm.value.price })
-        .eq("id", currentDetailId.value);
-    } else {
-      // 新增明細
-      await supabase.from("Exhibition_Product_Details").insert({
-        booth_id: activeBoothId.value,
-        product_id: isBundleMode.value ? null : eventPriceForm.value.product_id,
-        bundle_id: finalBundleId,
-        event_price: eventPriceForm.value.price,
-      });
-    }
+    // 更新 Exhibition_Product_Details 的現場售價 (不管是單品還是組合包編輯都會跑這段)
+    const { error: detailUpdateErr } = await supabase
+      .from("Exhibition_Product_Details")
+      .update({ event_price: eventPriceForm.value.price })
+      .eq("id", currentDetailId.value);
+
+    if (detailUpdateErr) throw detailUpdateErr;
+
     addDialog.value = false;
     await fetchAllData();
+    alert(isEdit.value ? "修改成功" : "上架成功");
   } catch (err: any) {
-    alert(err.message);
+    console.error("Save Error:", err);
+    alert("儲存失敗：" + (err.message || "未知錯誤"));
   } finally {
     loading.value = false;
   }
@@ -658,6 +757,38 @@ const removeProduct = async (detailId: number) => {
     loading.value = false;
   }
 };
+
+watch(
+  () => bundleForm.value.selectedProducts,
+  (newPids) => {
+    // 如果 newPids 為空，清空 weights 並結束
+    if (!newPids || newPids.length === 0) {
+      bundleForm.value.weights = {};
+      return;
+    }
+
+    const newWeights: Record<number, number> = { ...bundleForm.value.weights };
+
+    newPids.forEach((pid) => {
+      // 只有在權重尚未設定時才自動填入原價
+      if (newWeights[pid] === undefined) {
+        const product = rawAuthorizedProducts.value.find((p) => p.id === pid);
+        newWeights[pid] = product?.original_price || 1;
+      }
+    });
+
+    // 移除已經不在選擇清單中的權重（保持資料整潔）
+    Object.keys(newWeights).forEach((key) => {
+      if (!newPids.includes(Number(key))) {
+        delete newWeights[Number(key)];
+      }
+    });
+
+    // 重新賦值以確保響應式
+    bundleForm.value.weights = newWeights;
+  },
+  { deep: true }
+);
 
 onMounted(() => {
   fetchAllData();
