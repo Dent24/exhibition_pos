@@ -1,4 +1,4 @@
-import{u as v,a as y}from"./BaIy0xle.js";import{O as b,o as w,i as a,m as q}from"./LCHgIYE9.js";const g=()=>{const c=v(),d=y(),p=a([]),s=a(null),n=a([]),i=a([]),r=a(!1),f=q(()=>i.value.reduce((t,e)=>t+e.event_price*e.quantity,0)),u=async()=>{if(!s.value){n.value=[];return}r.value=!0;try{const{data:t,error:e}=await c.from("Exhibition_Product_Details").select(`
+import{u as v,a as y}from"./DoI1R5cQ.js";import{O as b,o as w,i as a,m as q}from"./YQiaH3kh.js";const g=()=>{const c=v(),d=y(),p=a([]),s=a(null),n=a([]),i=a([]),r=a(!1),f=q(()=>i.value.reduce((t,e)=>t+e.event_price*e.quantity,0)),u=async()=>{if(!s.value){n.value=[];return}r.value=!0;try{const{data:t,error:e}=await c.from("Exhibition_Product_Details").select(`
           id, 
           event_price, 
           is_paid,
