@@ -5,7 +5,9 @@
         <p class="text-display-medium font-weight-black text-black mb-2">
           設定攤位商品
         </p>
-        <p class="text-grey-darken-1 mb-0">各攤位銷售品項的上架與價格設定。</p>
+        <p class="text-grey-darken-1 mb-0">
+          各攤位銷售品項的上架、價格與組合包設定。
+        </p>
       </v-col>
     </v-row>
 
@@ -29,7 +31,7 @@
                 class="ml-2"
                 size="small"
               >
-                數量：{{ booth.details.length }}
+                項目數：{{ booth.details.length }}
               </v-chip>
             </v-col>
             <v-col cols="4" class="text-right pr-4">
@@ -47,16 +49,34 @@
                     : "準備中 (可編輯)"
                 }}
               </v-chip>
-              <v-btn
+
+              <v-menu
                 v-if="getStatus(booth.exhibitions.start_date) === 'editable'"
-                color="primary"
-                prepend-icon="mdi-plus"
-                size="small"
-                class="ml-4"
-                @click="openAddDialog(booth.id)"
               >
-                上架新商品
-              </v-btn>
+                <template v-slot:activator="{ props }">
+                  <v-btn
+                    color="primary"
+                    prepend-icon="mdi-plus"
+                    size="small"
+                    class="ml-4"
+                    v-bind="props"
+                  >
+                    上架新項目
+                  </v-btn>
+                </template>
+                <v-list density="compact" class="py-0">
+                  <v-list-item
+                    prepend-icon="mdi-package-variant"
+                    title="上架單一商品"
+                    @click="openAddDialog(booth.id, 'product')"
+                  ></v-list-item>
+                  <v-list-item
+                    prepend-icon="mdi-gift-outline"
+                    title="建立組合優惠"
+                    @click="openAddDialog(booth.id, 'bundle')"
+                  ></v-list-item>
+                </v-list>
+              </v-menu>
             </v-col>
           </v-row>
         </v-expansion-panel-title>
@@ -73,24 +93,51 @@
             <template v-slot:item.product.name="{ item }">
               <div class="d-flex align-center py-3">
                 <v-avatar
-                  :color="item.is_paid ? 'blue-lighten-5' : 'grey-lighten-4'"
+                  :color="
+                    item.bundle
+                      ? 'purple-lighten-5'
+                      : item.is_paid
+                      ? 'blue-lighten-5'
+                      : 'grey-lighten-4'
+                  "
                   rounded="lg"
                   size="36"
                   class="mr-3"
                 >
-                  <v-icon :color="item.is_paid ? 'blue' : 'grey'" size="18">
+                  <v-icon
+                    :color="
+                      item.bundle ? 'purple' : item.is_paid ? 'blue' : 'grey'
+                    "
+                    size="18"
+                  >
                     {{
-                      item.is_paid
+                      item.bundle
+                        ? "mdi-gift-outline"
+                        : item.is_paid
                         ? "mdi-check-decagram"
                         : "mdi-package-variant"
                     }}
                   </v-icon>
                 </v-avatar>
-                <div
-                  class="font-weight-bold"
-                  :class="item.is_paid ? 'text-grey' : ''"
-                >
-                  {{ item.product.name }}
+                <div>
+                  <div
+                    class="font-weight-bold"
+                    :class="item.is_paid ? 'text-grey' : ''"
+                  >
+                    <template v-if="item.bundle">
+                      {{ item.bundle?.name }}
+                      <span class="text-grey-darken-1 font-weight-regular">
+                        ({{
+                          item.bundle.items
+                            .map((i) => i.product.name)
+                            .join(", ")
+                        }})
+                      </span>
+                    </template>
+                    <template v-else>
+                      {{ item.product?.name }}
+                    </template>
+                  </div>
                 </div>
               </div>
             </template>
@@ -118,6 +165,16 @@
               </v-chip>
             </template>
 
+            <template v-slot:item.product.original_price="{ item }">
+              <div v-if="item.bundle" class="d-flex flex-column">
+                <span class="text-grey-darken-2 font-weight-bold"
+                  >${{ calculateBundleOriginalPrice(item.bundle) }}</span
+                >
+                <span class="text-caption text-purple">組合原價</span>
+              </div>
+              <span v-else>${{ item.product?.original_price }}</span>
+            </template>
+
             <template v-slot:item.event_price="{ item }">
               <div class="d-flex flex-column">
                 <span
@@ -130,7 +187,11 @@
                   ${{ item.event_price }}
                 </span>
                 <span
-                  v-if="item.event_price !== item.product.original_price"
+                  v-if="
+                    !item.bundle &&
+                    item.product &&
+                    item.event_price !== item.product.original_price
+                  "
                   class="text-caption text-grey text-decoration-line-through"
                 >
                   ${{ item.product.original_price }}
@@ -139,39 +200,46 @@
             </template>
 
             <template v-slot:item.product.total_inventory="{ item }">
+              <div v-if="item.bundle">
+                <span
+                  :class="
+                    calculateBundleStock(item.bundle) <= 5
+                      ? 'text-error font-weight-bold'
+                      : ''
+                  "
+                >
+                  {{ calculateBundleStock(item.bundle) }} <small>sets</small>
+                </span>
+              </div>
               <span
+                v-else
                 :class="
-                  item.product.total_inventory <= 5
+                  item.product?.total_inventory <= 5
                     ? 'text-error font-weight-bold'
                     : ''
                 "
               >
-                {{ item.product.total_inventory }} <small>pcs</small>
+                {{ item.product?.total_inventory }} <small>pcs</small>
               </span>
             </template>
 
             <template v-slot:item.actions="{ item }">
               <div v-if="item.is_paid" class="d-flex align-center justify-end">
-                <v-tooltip text="賣家已結清帳務，無法修改" location="top">
-                  <template v-slot:activator="{ props }">
-                    <v-chip
-                      v-bind="props"
-                      size="x-small"
-                      color="blue-lighten-4"
-                      text-color="blue-darken-2"
-                      variant="flat"
-                      class="px-2"
-                    >
-                      <v-icon start icon="mdi-lock" size="12"></v-icon>
-                      帳務鎖定
-                    </v-chip>
-                  </template>
-                </v-tooltip>
+                <v-chip
+                  size="x-small"
+                  color="blue-lighten-4"
+                  text-color="blue-darken-2"
+                  variant="flat"
+                >
+                  <v-icon start icon="mdi-lock" size="12"></v-icon> 帳務鎖定
+                </v-chip>
               </div>
 
               <div
                 v-else-if="
-                  getStatus(booth.exhibitions.start_date) === 'editable'
+                  getStatus(
+                    getBoothByDetailId(item.id)?.exhibitions.start_date
+                  ) === 'editable'
                 "
                 class="d-flex justify-end"
               >
@@ -180,7 +248,7 @@
                   variant="text"
                   color="blue-darken-1"
                   size="small"
-                  @click="openEditDialog(booth.id, item)"
+                  @click="openEditDialog(getBoothByDetailId(item.id)?.id, item)"
                 ></v-btn>
                 <v-btn
                   icon="mdi-delete-outline"
@@ -196,14 +264,14 @@
                   icon="mdi-lock-clock"
                   color="grey-lighten-1"
                   size="small"
-                  class="mr-1"
                 ></v-icon>
-                <span class="text-caption text-grey-lighten-1">活動中鎖定</span>
               </div>
             </template>
 
             <template v-slot:no-data>
-              <div class="pa-10 text-grey">目前尚無商品，請新增商品</div>
+              <div class="pa-10 text-grey">
+                目前尚無項目，請新增商品或組合包
+              </div>
             </template>
           </v-data-table>
         </v-expansion-panel-text>
@@ -216,111 +284,108 @@
       persistent
       transition="dialog-bottom-transition"
     >
-      <v-card class="rounded-xl overflow-hidden elevation-24 bg-surface">
+      <v-card class="rounded-xl overflow-hidden elevation-24">
         <div
           class="px-6 py-5 bg-grey-lighten-5 border-b d-flex justify-space-between align-center"
         >
           <h3 class="font-weight-black text-grey-darken-4">
-            {{ isEdit ? "修改展覽售價" : "上架商品到攤位" }}
+            {{
+              isBundleMode
+                ? "設定組合販售"
+                : isEdit
+                ? "修改展覽售價"
+                : "上架商品到攤位"
+            }}
           </h3>
           <v-btn
             icon="mdi-close"
             variant="text"
-            color="grey-darken-1"
             @click="addDialog = false"
           ></v-btn>
         </div>
 
         <v-card-text class="pa-8">
-          <div class="mb-6">
+          <div v-if="isBundleMode" class="mb-6">
             <label
               class="text-subtitle-2 font-weight-bold text-grey-darken-2 d-block mb-2"
+              >組合包名稱</label
             >
-              {{ isEdit ? "正在編輯商品" : "選擇尚未上架的商品" }}
-            </label>
-            <v-select
-              v-model="eventPriceForm.product_id"
-              :items="displayProducts"
-              item-title="name"
-              item-value="id"
-              placeholder="請選擇授權商品"
-              variant="filled"
-              flat
-              hide-details
-              bg-color="grey-lighten-4"
-              rounded="t-lg"
-              :disabled="isEdit"
-              :no-data-text="
-                rawAuthorizedProducts.length === 0
-                  ? '目前無授權商品'
-                  : '所有授權商品皆已在此攤位上架'
-              "
-            >
-              <template v-slot:item="{ props, item }">
-                <v-list-item
-                  v-bind="props"
-                  :subtitle="`庫存: ${item.total_inventory} | 賣家: ${item.seller?.nickname}`"
-                >
-                  <template v-slot:prepend>
-                    <v-icon color="grey-darken-1">mdi-package-variant</v-icon>
-                  </template>
-                </v-list-item>
-              </template>
-            </v-select>
-          </div>
-
-          <div class="mb-6">
-            <label
-              class="text-subtitle-2 font-weight-bold text-grey-darken-2 d-block mb-2"
-            >
-              展覽售價 (NT$)
-            </label>
             <v-text-field
-              v-model.number="eventPriceForm.price"
-              type="number"
-              prefix="$"
-              placeholder="請輸入展場售價"
+              v-model="bundleForm.name"
+              :disabled="isEdit"
+              placeholder="例如：新刊豪華套組"
               variant="filled"
               flat
               hide-details
               bg-color="grey-lighten-4"
               rounded="t-lg"
             ></v-text-field>
+
+            <label
+              class="text-subtitle-2 font-weight-bold text-grey-darken-2 d-block mt-4 mb-2"
+              >選擇內容物</label
+            >
+            <v-select
+              v-model="bundleForm.selectedProducts"
+              :items="rawAuthorizedProducts"
+              item-title="name"
+              item-value="id"
+              :disabled="isEdit"
+              placeholder="請選擇商品 (可多選)"
+              multiple
+              chips
+              variant="filled"
+              flat
+              hide-details
+              bg-color="grey-lighten-4"
+            ></v-select>
           </div>
 
-          <div class="bg-blue-lighten-5 pa-4 rounded-lg d-flex align-start">
-            <v-icon color="primary" class="mr-3 mt-1" size="20"
-              >mdi-tag-outline</v-icon
+          <div v-else class="mb-6">
+            <label
+              class="text-subtitle-2 font-weight-bold text-grey-darken-2 d-block mb-2"
+              >選擇商品</label
             >
-            <div class="text-caption text-blue-darken-4 leading-relaxed">
-              <strong>定價提示：</strong>
-              您可以針對不同展覽設定不同的售價。此價格僅會影響該攤位的 POS
-              結帳金額，不會修改原始商品的設定價格。
-            </div>
+            <v-select
+              v-model="eventPriceForm.product_id"
+              :items="displayProducts"
+              item-title="name"
+              item-value="id"
+              :disabled="isEdit"
+              variant="filled"
+              flat
+              hide-details
+              bg-color="grey-lighten-4"
+            ></v-select>
+          </div>
+
+          <div class="mb-6">
+            <label
+              class="text-subtitle-2 font-weight-bold text-grey-darken-2 d-block mb-2"
+              >展覽售價 (NT$)</label
+            >
+            <v-text-field
+              v-model.number="eventPriceForm.price"
+              type="number"
+              prefix="$"
+              variant="filled"
+              flat
+              hide-details
+              bg-color="grey-lighten-4"
+            ></v-text-field>
           </div>
         </v-card-text>
 
-        <v-divider></v-divider>
         <v-card-actions class="px-8 py-6 bg-grey-lighten-5">
           <v-spacer></v-spacer>
-          <v-btn
-            variant="text"
-            class="font-weight-bold px-6 text-grey-darken-1"
-            @click="addDialog = false"
-          >
-            取消
-          </v-btn>
+          <v-btn variant="text" @click="addDialog = false">取消</v-btn>
           <v-btn
             color="primary"
-            class="font-weight-bold px-8 rounded-lg"
-            height="44"
             variant="flat"
-            :disabled="!eventPriceForm.product_id"
             :loading="loading"
-            @click="saveProduct"
+            @click="saveItem"
+            >確認上架</v-btn
           >
-            {{ isEdit ? "更新售價" : "確認上架" }}
-          </v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>
@@ -337,75 +402,61 @@ const headers: ReadonlyArray<{
   width?: string;
   align?: "start" | "end" | "center";
 }> = [
-  { title: "商品資訊", key: "product.name", align: "start" },
-  {
-    title: "對帳狀態",
-    key: "status",
-    width: "120px",
-    align: "center",
-  },
+  { title: "項目資訊", key: "product.name", align: "start" },
+  { title: "對帳狀態", key: "status", width: "120px", align: "center" },
   { title: "原價", key: "product.original_price", align: "start" },
   { title: "現場售價", key: "event_price", align: "start" },
-  {
-    title: "目前庫存",
-    key: "product.total_inventory",
-    align: "center",
-  },
+  { title: "目前庫存", key: "product.total_inventory", align: "center" },
   { title: "操作", key: "actions", align: "end" },
 ];
 
-// 狀態管理
 const loading = ref(false);
-const boothsData = ref<any[]>([]); // 存放所有攤位及其商品
-
-// Dialog 控制
+const boothsData = ref<any[]>([]);
+const rawAuthorizedProducts = ref<any[]>([]);
 const addDialog = ref(false);
 const activeBoothId = ref<number | null>(null);
-const eventPriceForm = ref({
-  product_id: null as number | null,
-  price: 0,
-});
-
-// 在原本的狀態管理區新增
 const isEdit = ref(false);
+const isBundleMode = ref(false);
 const currentDetailId = ref<number | null>(null);
 
-const rawAuthorizedProducts = ref<any[]>([]);
+const eventPriceForm = ref({ product_id: null as number | null, price: 0 });
+const bundleForm = ref({ name: "", selectedProducts: [] as number[] });
 
-const availableProductsForSelect = computed(() => {
-  if (!activeBoothId.value) return [];
+// --- 修正後的邏輯函式 ---
 
-  // 找出目前選定攤位中，已經上架的商品 ID 列表
-  const currentBooth = boothsData.value.find(
-    (b) => b.id === activeBoothId.value
+// 計算組合包原價總和
+const calculateBundleOriginalPrice = (bundle: any) => {
+  if (!bundle?.items?.length) return 0;
+  return bundle.items.reduce(
+    (sum: number, item: any) => sum + (item.product?.original_price || 0),
+    0
   );
-  const existingProductIds =
-    currentBooth?.details.map((d: any) => d.product.id) || [];
+};
 
-  // 傳回：(具備授權) 且 (庫存 > 0) 且 (不在目前攤位已有的 ID 列表中)
-  return rawAuthorizedProducts.value.filter(
-    (p) => !existingProductIds.includes(p.id)
+// 計算組合包最少庫存
+const calculateBundleStock = (bundle: any) => {
+  if (!bundle?.items?.length) return 0;
+  return Math.min(
+    ...bundle.items.map((i: any) => i.product?.total_inventory || 0)
   );
-});
+};
 
-const displayProducts = computed(() => {
-  // 如果是編輯模式，要把「目前這項商品」手動加進去，否則會因為被過濾掉而只顯示 ID
-  if (isEdit.value && eventPriceForm.value.product_id) {
-    const currentProduct = rawAuthorizedProducts.value.find(
-      (p) => p.id === eventPriceForm.value.product_id
-    );
-    return currentProduct ? [currentProduct] : [];
-  }
+const getBoothByDetailId = (detailId: number) => {
+  return boothsData.value.find((b) =>
+    b.details.some((d: any) => d.id === detailId)
+  );
+};
 
-  // 如果是新增模式，維持原本的「排除已上架」邏輯
-  return availableProductsForSelect.value;
-});
+const getStatus = (startDate: string) => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const start = new Date(startDate);
+  return today >= start ? "locked" : "editable";
+};
 
-// 1. 核心查詢：一次抓取「我的攤位」+「對應展覽」+「已上架商品」
 const fetchAllData = async () => {
   if (!userStore.profile?.id) return;
   loading.value = true;
-
   try {
     const { data, error } = await supabase
       .from("Exhibition_Booths")
@@ -415,152 +466,197 @@ const fetchAllData = async () => {
         exhibitions:exhibition_id ( id, name, start_date, end_date ),
         details:Exhibition_Product_Details (
           id, event_price, is_paid,
-          product:product_id ( id, name, original_price, total_inventory )
+          product:product_id ( id, name, original_price, total_inventory ),
+          bundle:bundle_id ( 
+            id, name, 
+            items:Bundle_Items ( product:product_id ( id, name, original_price, total_inventory ) ) 
+          )
         )
       `
       )
       .eq("owner_id", userStore.profile.id);
-
     if (error) throw error;
     boothsData.value = data || [];
   } catch (err: any) {
-    alert("讀取失敗: " + err.message);
+    console.error("Fetch Error:", err.message);
   } finally {
     loading.value = false;
   }
 };
 
-// 2. 取得授權清單 (供新增時選擇)
 const fetchAuthorized = async () => {
   const { data } = await supabase
     .from("Product_Permissions")
     .select(
-      `
-      product:product_id ( id, name, original_price, total_inventory, seller:seller_id(nickname) )
-    `
+      `product:product_id ( id, name, original_price, total_inventory, seller:seller_id(nickname) )`
     )
     .eq("owner_id", userStore.profile?.id)
     .eq("enable", true);
-
-  if (data) {
-    rawAuthorizedProducts.value = data.map((item: any) => item.product);
-  }
+  if (data) rawAuthorizedProducts.value = data.map((item: any) => item.product);
 };
 
-// 3. 判斷展覽狀態
-const getStatus = (startDate: string) => {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const start = new Date(startDate);
-  start.setHours(0, 0, 0, 0);
-  return today >= start ? "locked" : "editable";
-};
+const displayProducts = computed(() => {
+  if (isEdit.value) return rawAuthorizedProducts.value;
+  const currentBooth = boothsData.value.find(
+    (b) => b.id === activeBoothId.value
+  );
+  const existingIds =
+    currentBooth?.details.map((d: any) => d.product?.id).filter(Boolean) || [];
+  return rawAuthorizedProducts.value.filter((p) => !existingIds.includes(p.id));
+});
 
-// 4. 新增商品
-const openAddDialog = (boothId: number) => {
+const openAddDialog = (boothId: number, mode: "product" | "bundle") => {
   activeBoothId.value = boothId;
-  isEdit.value = false; // 確保是新增模式
-  currentDetailId.value = null;
+  isBundleMode.value = mode === "bundle";
+  isEdit.value = false;
   eventPriceForm.value = { product_id: null, price: 0 };
+  bundleForm.value = { name: "", selectedProducts: [] };
   addDialog.value = true;
 };
 
-const saveProduct = async () => {
-  if (!eventPriceForm.value.product_id || !activeBoothId.value) return;
+// 修正後的編輯 Dialog 開啟邏輯
+const openEditDialog = (boothId: number, item: any) => {
+  activeBoothId.value = boothId;
+  isEdit.value = true;
+  currentDetailId.value = item.id;
+  eventPriceForm.value.price = item.event_price;
+
+  if (item.bundle) {
+    // 進入組合包編輯模式 (目前僅支援改價)
+    isBundleMode.value = true;
+    bundleForm.value.name = item.bundle.name;
+    bundleForm.value.selectedProducts = item.bundle.items.map(
+      (i: any) => i.product.id
+    );
+  } else {
+    // 進入單品編輯模式
+    isBundleMode.value = false;
+    eventPriceForm.value.product_id = item.product.id;
+  }
+  addDialog.value = true;
+};
+
+const saveItem = async () => {
+  if (isBundleMode.value && !bundleForm.value.name) return alert("請輸入名稱");
+  if (!isBundleMode.value && !eventPriceForm.value.product_id)
+    return alert("請選擇商品");
 
   loading.value = true;
   try {
-    if (isEdit.value && currentDetailId.value) {
-      // 執行更新
-      const { error } = await supabase
+    let finalBundleId = null;
+
+    // 只有在「非編輯模式」的新增情況下才建立組合包
+    if (isBundleMode.value && !isEdit.value) {
+      const { data: bData, error: bErr } = await supabase
+        .from("Product_Bundles")
+        .insert({ booth_id: activeBoothId.value, name: bundleForm.value.name })
+        .select()
+        .single();
+      if (bErr) throw bErr;
+      const items = bundleForm.value.selectedProducts.map((pid) => ({
+        bundle_id: bData.id,
+        product_id: pid,
+      }));
+      await supabase.from("Bundle_Items").insert(items);
+      finalBundleId = bData.id;
+    }
+
+    if (isEdit.value) {
+      // 修改僅更新現場售價
+      await supabase
         .from("Exhibition_Product_Details")
         .update({ event_price: eventPriceForm.value.price })
         .eq("id", currentDetailId.value);
-      if (error) throw error;
     } else {
-      // 執行新增
-      const { error } = await supabase
-        .from("Exhibition_Product_Details")
-        .insert({
-          booth_id: activeBoothId.value,
-          product_id: eventPriceForm.value.product_id,
-          event_price: eventPriceForm.value.price,
-        });
-      if (error) throw error;
+      // 新增明細
+      await supabase.from("Exhibition_Product_Details").insert({
+        booth_id: activeBoothId.value,
+        product_id: isBundleMode.value ? null : eventPriceForm.value.product_id,
+        bundle_id: finalBundleId,
+        event_price: eventPriceForm.value.price,
+      });
     }
-
     addDialog.value = false;
-    await fetchAllData(); // 重新整理列表
+    await fetchAllData();
   } catch (err: any) {
-    alert("儲存失敗：" + err.message);
+    alert(err.message);
   } finally {
     loading.value = false;
   }
 };
 
-// 5. 移除商品 (下架) - 強化版
 const removeProduct = async (detailId: number) => {
-  // 找出該筆 detail 的資料
+  // 1. 找到該筆資料，判斷是單品還是組合包
   let targetDetail: any = null;
   boothsData.value.forEach((b) => {
     const found = b.details.find((d: any) => d.id === detailId);
     if (found) targetDetail = found;
   });
 
-  // 1. 檢查是否已收款
-  if (targetDetail?.is_paid) {
-    alert("無法下架：賣家已確認此商品的收款並結案，資料已鎖定。");
-    return;
-  }
+  if (!targetDetail) return;
+
+  const isBundle = !!targetDetail.bundle;
+  const message = isBundle
+    ? `確定要下架組合包「${targetDetail.bundle?.name}」嗎？\n這將會同步刪除該組合的定義與配方。`
+    : `確定要下架商品「${targetDetail.product?.name}」嗎？`;
+
+  if (!confirm(message)) return;
 
   loading.value = true;
   try {
-    // 2. 檢查是否有銷售紀錄
+    // 2. 檢查是否有銷售紀錄 (安全性檢查)
     const { count, error: salesError } = await supabase
       .from("Sales_Records")
       .select("*", { count: "exact", head: true })
       .eq("detail_id", detailId);
 
     if (salesError) throw salesError;
-
     if (count && count > 0) {
-      alert(
-        `無法下架：此商品在此攤位已有 ${count} 筆銷售紀錄，請先前往「銷售紀錄」處理。`
-      );
+      alert(`無法下架：此項目已有 ${count} 筆銷售紀錄，無法刪除。`);
       return;
     }
 
-    // ... 其餘原本的刪除邏輯 ...
-    if (!confirm("確定要下架此商品嗎？")) return;
+    // 3. 執行刪除 (核心修正：手動處理關聯刪除順序)
+    if (isBundle) {
+      const bundleId = targetDetail.bundle.id;
 
-    const { error: deleteError } = await supabase
-      .from("Exhibition_Product_Details")
-      .delete()
-      .eq("id", detailId);
+      // 第一步：先刪除展覽明細 (Exhibition_Product_Details)
+      const { error: detailErr } = await supabase
+        .from("Exhibition_Product_Details")
+        .delete()
+        .eq("id", detailId);
+      if (detailErr) throw detailErr;
 
-    if (deleteError) throw deleteError;
+      // 第二步：刪除組合包內的商品清單 (Bundle_Items)
+      // 這是解決你錯誤訊息的關鍵！
+      const { error: itemsErr } = await supabase
+        .from("Bundle_Items")
+        .delete()
+        .eq("bundle_id", bundleId);
+      if (itemsErr) throw itemsErr;
+
+      // 第三步：最後刪除組合包定義 (Product_Bundles)
+      const { error: bundleErr } = await supabase
+        .from("Product_Bundles")
+        .delete()
+        .eq("id", bundleId);
+      if (bundleErr) throw bundleErr;
+    } else {
+      // 單純刪除單品明細
+      const { error: err } = await supabase
+        .from("Exhibition_Product_Details")
+        .delete()
+        .eq("id", detailId);
+      if (err) throw err;
+    }
+
     await fetchAllData();
+    alert("已成功下架項目");
   } catch (err: any) {
     alert("操作失敗: " + err.message);
   } finally {
     loading.value = false;
   }
-};
-
-// 新增開啟編輯彈窗的邏輯
-const openEditDialog = (boothId: number, item: any) => {
-  if (item.is_paid) {
-    alert("此商品已結清，無法修改售價。");
-    return;
-  }
-  activeBoothId.value = boothId;
-  isEdit.value = true;
-  currentDetailId.value = item.id;
-  eventPriceForm.value = {
-    product_id: item.product.id,
-    price: item.event_price,
-  };
-  addDialog.value = true;
 };
 
 onMounted(() => {
