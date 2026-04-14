@@ -29,27 +29,37 @@
         <v-row dense>
           <v-col v-for="item in products" :key="item.id" cols="6">
             <v-card
-              v-if="item.product"
               @click="
-                !item.is_paid && item.product.total_inventory > 0
+                !item.is_paid && item.computed_inventory > 0
                   ? addToCart(item)
                   : null
               "
-              :disabled="item.is_paid || item.product.total_inventory <= 0"
+              :disabled="item.is_paid || item.computed_inventory <= 0"
               :class="{
-                'opacity-60 bg-grey-lighten-2':
-                  item.product.total_inventory <= 0,
+                'opacity-60 bg-grey-lighten-2': item.computed_inventory <= 0,
                 'bg-blue-lighten-5 border-blue-lighten-3': item.is_paid,
+                'border-purple-lighten-3': item.bundle_id && !item.is_paid,
               }"
               class="pa-3 text-center rounded-lg border"
               variant="flat"
               style="position: relative; overflow: hidden; min-height: 110px"
             >
+              <v-chip
+                v-if="item.bundle_id"
+                size="x-small"
+                color="purple"
+                variant="flat"
+                class="position-absolute"
+                style="top: 4px; left: 4px; font-size: 0.6rem; height: 16px"
+              >
+                SET
+              </v-chip>
+
               <div
-                class="font-weight-bold"
+                class="font-weight-bold text-truncate"
                 :class="item.is_paid ? 'text-blue-darken-3' : ''"
               >
-                {{ item.product.name }}
+                {{ item.display_name }}
               </div>
               <div
                 :class="item.is_paid ? 'text-blue-darken-1' : 'text-primary'"
@@ -57,6 +67,7 @@
               >
                 ${{ item.event_price }}
               </div>
+
               <div class="mt-1" style="font-size: 0.7rem">
                 <template v-if="item.is_paid">
                   <v-chip
@@ -69,14 +80,15 @@
                 </template>
                 <template v-else>
                   <span
-                    v-if="item.product.total_inventory > 0"
+                    v-if="item.computed_inventory > 0"
                     class="text-grey-darken-1"
                   >
-                    庫存: {{ item.product.total_inventory }}
+                    庫存: {{ item.computed_inventory }}
                   </span>
                   <span v-else class="text-error font-weight-bold">已售罄</span>
                 </template>
               </div>
+
               <v-overlay
                 contained
                 :model-value="item.is_paid"
@@ -141,8 +153,11 @@
 
           <v-list-item v-for="(c, i) in cart" :key="i" class="px-2">
             <template v-slot:title>
-              <div class="font-weight-bold text-body-1">
-                {{ c.product.name }}
+              <div
+                class="font-weight-bold text-body-1"
+                :class="c.bundle_id ? 'text-purple-darken-2' : ''"
+              >
+                {{ c.display_name }}
               </div>
             </template>
             <template v-slot:subtitle>
@@ -171,9 +186,9 @@
                   size="x-small"
                   variant="text"
                   color="primary"
-                  :disabled="c.quantity >= c.product.total_inventory"
+                  :disabled="c.quantity >= c.computed_inventory"
                   @click="
-                    c.quantity < c.product.total_inventory ? c.quantity++ : null
+                    c.quantity < c.computed_inventory ? c.quantity++ : null
                   "
                 ></v-btn>
               </div>
@@ -197,7 +212,7 @@
                 block
                 color="blue-darken-2"
                 height="60"
-                @click="checkout('現金')"
+                @click="handleCheckout('現金')"
                 >現金結帳</v-btn
               >
             </v-col>
@@ -206,7 +221,7 @@
                 block
                 color="green-darken-1"
                 height="60"
-                @click="checkout('Line Pay')"
+                @click="handleCheckout('Line Pay')"
                 >Line Pay</v-btn
               >
             </v-col>
@@ -245,6 +260,14 @@ const {
 } = usePosSystem();
 
 const showCart = ref(false);
+
+// 封裝一個結帳處理，結帳完關閉 BottomSheet
+const handleCheckout = async (method: string) => {
+  await checkout(method);
+  if (cart.value.length === 0) {
+    showCart.value = false;
+  }
+};
 
 definePageMeta({
   layout: "clear",

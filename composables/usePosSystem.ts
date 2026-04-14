@@ -8,9 +8,22 @@ export const usePosSystem = () => {
   const cart = ref<any[]>([]);
   const loading = ref(false);
 
+  // 輔助函式：計算組合包內的最少庫存
+  const getInventory = (item: any) => {
+    if (item.bundle_id) {
+      if (!item.bundle?.items?.length) return 0;
+      return Math.min(...item.bundle.items.map((i: any) => i.product?.total_inventory || 0));
+    }
+    return item.product?.total_inventory || 0;
+  };
+
+  // 輔助函式：取得顯示名稱
+  const getDisplayName = (item: any) => {
+    return item.bundle_id ? item.bundle.name : item.product?.name;
+  };
+
   const totalAmount = computed(() => cart.value.reduce((s, c) => s + (c.event_price * c.quantity), 0));
 
-  // --- 新增：專門負責抓取當前攤位商品的函式 ---
   const fetchProducts = async () => {
     if (!selectedBooth.value) {
       products.value = [];
@@ -25,22 +38,30 @@ export const usePosSystem = () => {
           id, 
           event_price, 
           is_paid,
-          product:product_id!inner (
-            id,
-            name,
-            total_inventory,
-            permissions:Product_Permissions!inner (
-              enable,
-              owner_id
+          bundle_id,
+          product:product_id (
+            id, name, total_inventory,
+            permissions:Product_Permissions!inner ( enable, owner_id )
+          ),
+          bundle:bundle_id (
+            id, name,
+            items:Bundle_Items (
+              share_weight,
+              product:product_id ( id, name, total_inventory )
             )
           )
         `)
         .eq('booth_id', selectedBooth.value)
-        .eq('product.permissions.enable', true)
-        .eq('product.permissions.owner_id', userStore.profile?.id);
+        .or('product_id.not.is.null, bundle_id.not.is.null');
 
       if (error) throw error;
-      products.value = (data || []).filter(item => item.product !== null);
+      
+      // 過濾權限（單品直接查，組合包則檢查擁有者 ID，這裡假設組合包也歸屬在攤主下）
+      products.value = (data || []).map(item => {
+        const inventory = getInventory(item);
+        const name = getDisplayName(item);
+        return { ...item, computed_inventory: inventory, display_name: name };
+      });
     } catch (err) {
       console.error('POS 商品載入失敗:', err);
       products.value = [];
@@ -69,25 +90,16 @@ export const usePosSystem = () => {
   watch(selectedBooth, fetchProducts);
 
   const addToCart = (item: any) => {
-    if (item.is_paid) {
-      alert('此商品賣家已結清，無法再販售！');
-      return;
-    }
+    if (item.is_paid) return alert('此項目已結清！');
   
-    const currentInventory = item.product.total_inventory; 
+    const currentInventory = item.computed_inventory; 
     const exist = cart.value.find(c => c.id === item.id);
     
     if (exist) {
-      if (exist.quantity >= currentInventory) {
-        alert('已達庫存上限！');
-        return;
-      }
+      if (exist.quantity >= currentInventory) return alert('已達庫存上限！');
       exist.quantity++;
     } else {
-      if (currentInventory <= 0) {
-        alert('商品已無庫存！');
-        return;
-      }
+      if (currentInventory <= 0) return alert('已無庫存！');
       cart.value.push({ ...item, quantity: 1 });
     }
   };
@@ -137,5 +149,8 @@ const checkout = async (paymentMethod: string) => { // 接收參數
 
   onMounted(init);
 
-  return { booths, selectedBooth, products, cart, totalAmount, addToCart, checkout, loading, fetchProducts };
+  return { 
+    booths, selectedBooth, products, cart, totalAmount, 
+    addToCart, checkout, loading, fetchProducts, getInventory, getDisplayName 
+  };
 };

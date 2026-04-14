@@ -15,24 +15,34 @@
       <v-row>
         <v-col v-for="item in products" :key="item.id" cols="4" lg="3">
           <v-card
-            v-if="item.product"
             @click="
-              !item.is_paid && item.product.total_inventory > 0
+              !item.is_paid && item.computed_inventory > 0
                 ? addToCart(item)
                 : null
             "
-            :hover="!item.is_paid && item.product.total_inventory > 0"
-            :disabled="item.is_paid || item.product.total_inventory <= 0"
+            :hover="!item.is_paid && item.computed_inventory > 0"
+            :disabled="item.is_paid || item.computed_inventory <= 0"
             :class="{
               'opacity-60 bg-grey-lighten-3':
-                item.is_paid || item.product.total_inventory <= 0,
-              'border-blue-darken-1': item.is_paid,
+                item.is_paid || item.computed_inventory <= 0,
+              'border-purple-darken-1': item.bundle_id && !item.is_paid, // 組合包特殊邊框
             }"
             class="pa-4 text-center rounded-lg border-sm d-flex flex-column justify-center"
             style="min-height: 160px"
           >
+            <v-chip
+              v-if="item.bundle_id"
+              size="x-small"
+              color="purple"
+              variant="flat"
+              class="position-absolute mt-n2 ml-n2"
+              style="top: 10px; left: 10px"
+            >
+              SET
+            </v-chip>
+
             <div class="text-h6 font-weight-bold mb-1">
-              {{ item.product.name }}
+              {{ item.display_name }}
             </div>
 
             <div class="text-primary text-h5 font-weight-black">
@@ -46,47 +56,23 @@
                 color="blue-darken-2"
                 variant="flat"
                 label
-                prepend-icon="mdi-cash-lock"
               >
                 已結清
               </v-chip>
               <v-chip
                 v-else
                 size="x-small"
-                :color="
-                  item.product.total_inventory > 0 ? 'grey-darken-1' : 'error'
-                "
+                :color="item.computed_inventory > 0 ? 'grey-darken-1' : 'error'"
                 variant="flat"
                 label
               >
                 {{
-                  item.product.total_inventory > 0
-                    ? `庫存: ${item.product.total_inventory}`
-                    : "暫無庫存"
+                  item.computed_inventory > 0
+                    ? `庫存: ${item.computed_inventory}`
+                    : "已售罄"
                 }}
               </v-chip>
             </div>
-
-            <v-overlay
-              contained
-              :scrim="item.is_paid ? 'blue-lighten-5' : 'white'"
-              :model-value="item.is_paid || item.product.total_inventory <= 0"
-              persistent
-              class="align-center justify-center"
-              opacity="0.7"
-            >
-              <div v-if="item.is_paid" class="d-flex flex-column align-center">
-                <v-icon color="blue-darken-2" size="large"
-                  >mdi-lock-check</v-icon
-                >
-                <span class="text-blue-darken-2 font-weight-bold text-h6"
-                  >帳務已結清</span
-                >
-              </div>
-              <span v-else class="text-error font-weight-bold text-h6"
-                >已售罄</span
-              >
-            </v-overlay>
           </v-card>
         </v-col>
       </v-row>
@@ -100,7 +86,15 @@
       <v-toolbar color="grey-darken-4" title="待結帳清單"></v-toolbar>
       <v-list class="flex-grow-1 overflow-y-auto">
         <v-list-item v-for="(c, i) in cart" :key="i">
-          <template v-slot:title>{{ c.product.name }}</template>
+          <template v-slot:title>
+            <span
+              :class="
+                c.bundle_id ? 'text-purple-darken-2 font-weight-bold' : ''
+              "
+            >
+              {{ c.display_name }}
+            </span>
+          </template>
           <template v-slot:subtitle
             >${{ c.event_price }} x {{ c.quantity }}</template
           >
@@ -114,10 +108,8 @@
             <v-btn
               icon="mdi-plus"
               size="x-small"
-              @click="
-                c.quantity < c.product.total_inventory ? c.quantity++ : null
-              "
-              :disabled="c.quantity >= c.product.total_inventory"
+              @click="c.quantity < c.computed_inventory ? c.quantity++ : null"
+              :disabled="c.quantity >= c.computed_inventory"
             ></v-btn>
           </template>
         </v-list-item>
