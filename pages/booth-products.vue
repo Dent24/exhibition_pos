@@ -176,27 +176,13 @@
             </template>
 
             <template v-slot:item.event_price="{ item }">
-              <div class="d-flex flex-column">
-                <span
-                  :class="
-                    item.is_paid
-                      ? 'text-grey'
-                      : 'text-primary font-weight-black'
-                  "
-                >
-                  ${{ item.event_price }}
-                </span>
-                <span
-                  v-if="
-                    !item.bundle &&
-                    item.product &&
-                    item.event_price !== item.product.original_price
-                  "
-                  class="text-caption text-grey text-decoration-line-through"
-                >
-                  ${{ item.product.original_price }}
-                </span>
-              </div>
+              <span
+                :class="
+                  item.is_paid ? 'text-grey' : 'text-primary font-weight-black'
+                "
+              >
+                ${{ item.event_price }}
+              </span>
             </template>
 
             <template v-slot:item.product.total_inventory="{ item }">
@@ -591,9 +577,13 @@ const openEditDialog = (boothId: number, item: any) => {
 };
 
 const saveItem = async () => {
-  if (isBundleMode.value && !bundleForm.value.name) return alert("請輸入名稱");
+  // 基本驗證
+  if (isBundleMode.value && !bundleForm.value.name)
+    return alert("請輸入組合包名稱");
   if (!isBundleMode.value && !eventPriceForm.value.product_id)
     return alert("請選擇商品");
+  if (isEdit.value && !currentDetailId.value)
+    return alert("找不到編輯對象，請重新開啟視窗");
 
   loading.value = true;
   try {
@@ -601,46 +591,38 @@ const saveItem = async () => {
 
     if (isBundleMode.value) {
       if (isEdit.value) {
-        // --- 編輯組合包模式 ---
-        // 1. 取得目前正在編輯的 detail 資料
+        // --- 1. 編輯組合包模式 ---
+        // 找到目前的 detail 以獲取 bundle_id
         const detail = boothsData.value
           .flatMap((b) => b.details)
           .find((d) => d.id === currentDetailId.value);
-        finalBundleId = detail?.bundle.id;
 
-        if (finalBundleId) {
-          // 2. 更新組合包名稱
-          const { error: nameErr } = await supabase
-            .from("Product_Bundles")
-            .update({ name: bundleForm.value.name })
-            .eq("id", finalBundleId);
-          if (nameErr) throw nameErr;
+        finalBundleId = detail?.bundle?.id;
 
-          // 3. 更新各個項目的權重
-          // 使用 Promise.all 確保所有更新都完成，並檢查 pid 是否為 Number
-          const updatePromises = bundleForm.value.selectedProducts.map(
-            (pid) => {
-              const weight = bundleForm.value.weights[pid];
-              console.log(
-                `正在更新 Bundle:${finalBundleId}, Product:${pid}, Weight:${weight}`
-              ); // 除錯用
+        if (!finalBundleId) throw new Error("找不到對應的組合包 ID");
 
-              return supabase
-                .from("Bundle_Items")
-                .update({ share_weight: weight })
-                .eq("bundle_id", finalBundleId)
-                .eq("product_id", Number(pid)); // 強制轉型確保比對正確
-            }
-          );
+        // 更新組合包名稱
+        const { error: nameErr } = await supabase
+          .from("Product_Bundles")
+          .update({ name: bundleForm.value.name })
+          .eq("id", finalBundleId);
+        if (nameErr) throw nameErr;
 
-          const results = await Promise.all(updatePromises);
+        // 更新權重 (Bundle_Items)
+        const updatePromises = bundleForm.value.selectedProducts.map((pid) => {
+          const weight = bundleForm.value.weights[pid];
+          return supabase
+            .from("Bundle_Items")
+            .update({ share_weight: weight })
+            .eq("bundle_id", finalBundleId)
+            .eq("product_id", Number(pid));
+        });
 
-          // 檢查是否有任何一個更新出錯
-          const firstError = results.find((r) => r.error)?.error;
-          if (firstError) throw firstError;
-        }
+        const results = await Promise.all(updatePromises);
+        const firstError = results.find((r) => r.error)?.error;
+        if (firstError) throw firstError;
       } else {
-        // --- 新增組合包模式 (維持不變) ---
+        // --- 2. 新增組合包模式 ---
         const { data: bData, error: bErr } = await supabase
           .from("Product_Bundles")
           .insert({
@@ -651,8 +633,10 @@ const saveItem = async () => {
           .single();
         if (bErr) throw bErr;
 
+        finalBundleId = bData.id;
+
         const items = bundleForm.value.selectedProducts.map((pid) => ({
-          bundle_id: bData.id,
+          bundle_id: finalBundleId,
           product_id: Number(pid),
           share_weight: bundleForm.value.weights[pid] || 0,
         }));
@@ -660,23 +644,43 @@ const saveItem = async () => {
           .from("Bundle_Items")
           .insert(items);
         if (iErr) throw iErr;
-
-        finalBundleId = bData.id;
       }
     }
 
-    // 更新 Exhibition_Product_Details 的現場售價 (不管是單品還是組合包編輯都會跑這段)
-    const { error: detailUpdateErr } = await supabase
-      .from("Exhibition_Product_Details")
-      .update({ event_price: eventPriceForm.value.price })
-      .eq("id", currentDetailId.value);
+    // --- 3. 處理展覽明細 (Exhibition_Product_Details) ---
+    if (isEdit.value) {
+      // 編輯既有明細
+      const { error: detailUpdateErr } = await supabase
+        .from("Exhibition_Product_Details")
+        .update({ event_price: eventPriceForm.value.price })
+        .eq("id", Number(currentDetailId.value)); // 確保是數字型別
+      if (detailUpdateErr) throw detailUpdateErr;
+    } else {
+      // 新增上架明細
+      const insertData = {
+        booth_id: activeBoothId.value,
+        event_price: eventPriceForm.value.price,
+        is_paid: false,
+      };
 
-    if (detailUpdateErr) throw detailUpdateErr;
+      if (isBundleMode.value) {
+        insertData.bundle_id = finalBundleId;
+        insertData.product_id = null;
+      } else {
+        insertData.product_id = eventPriceForm.value.product_id;
+        insertData.bundle_id = null;
+      }
+
+      const { error: detailInsertErr } = await supabase
+        .from("Exhibition_Product_Details")
+        .insert(insertData);
+      if (detailInsertErr) throw detailInsertErr;
+    }
 
     addDialog.value = false;
     await fetchAllData();
     alert(isEdit.value ? "修改成功" : "上架成功");
-  } catch (err: any) {
+  } catch (err) {
     console.error("Save Error:", err);
     alert("儲存失敗：" + (err.message || "未知錯誤"));
   } finally {
