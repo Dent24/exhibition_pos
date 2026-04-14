@@ -1,4 +1,4 @@
-import{u as A,a as H}from"./DLBKmZaY.js";import{d as J,o as L,H as h,F as e,f as t,i as P,A as l,E as o,C as q,B as y,I as C,M as R,l as O,G as u,D as p,J as z,_ as Q}from"./BtaQ5iKF.js";const T={class:"d-flex align-center justify-end"},K={class:"text-success font-weight-bold mr-3"},U={key:0,class:"pa-4 text-center text-grey"},W=J({__name:"product-sales-report",setup(X){const S=A(),$=H(),x=P(!1),B=P([]),E=async()=>{if($.profile?.id){x.value=!0;try{const{data:_,error:a}=await S.from("Products").select(`
+import{u as A,a as H}from"./D6gusp28.js";import{d as J,o as L,H as h,F as e,f as t,i as P,A as l,E as o,C as q,B as y,I as C,M as R,l as O,G as u,D as p,J as z,_ as Q}from"./DfASbdxV.js";const T={class:"d-flex align-center justify-end"},K={class:"text-success font-weight-bold mr-3"},U={key:0,class:"pa-4 text-center text-grey"},W=J({__name:"product-sales-report",setup(X){const S=A(),$=H(),x=P(!1),B=P([]),E=async()=>{if($.profile?.id){x.value=!0;try{const{data:_,error:a}=await S.from("Products").select(`
         id, 
         name,
         details:Exhibition_Product_Details (
