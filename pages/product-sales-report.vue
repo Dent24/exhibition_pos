@@ -1,8 +1,11 @@
 <template>
   <v-container>
-    <v-row class="mb-4">
+    <v-row align="end" class="mb-10">
       <v-col>
-        <h1 class="text-h4 font-weight-bold text-primary">商品銷售統計</h1>
+        <p class="text-display-medium font-weight-black text-black mb-2">
+          商品銷售統計
+        </p>
+        <p class="text-grey-darken-1 mb-0">查看商品在各展覽的銷售表現</p>
       </v-col>
     </v-row>
 
@@ -49,22 +52,43 @@
 
                 <v-data-table
                   :headers="[
-                    { title: '攤位 (攤主)', key: 'booth_info' },
-                    { title: '現場定價', key: 'event_price', align: 'center' },
-                    { title: '銷量', key: 'quantity', align: 'center' },
-                    { title: '營收', key: 'revenue', align: 'end' },
+                    { title: '攤位 (攤主) / 來源項目', key: 'booth_info' },
+                    { title: '拆算單價', key: 'event_price', align: 'center' },
+                    { title: '總銷量', key: 'quantity', align: 'center' },
+                    { title: '應得營收', key: 'revenue', align: 'end' },
                   ]"
                   :items="ex.booths"
                   density="compact"
                   hide-default-footer
                   class="mt-3 border rounded shadow-sm"
                 >
+                  <template v-slot:item.booth_info="{ item }">
+                    <div class="d-flex align-center">
+                      <div class="font-weight-bold mr-3">
+                        {{ item.booth_info }}
+                      </div>
+                      <v-chip
+                        size="x-small"
+                        :color="
+                          item.source_name === '一般單品' ? 'grey' : 'purple'
+                        "
+                        variant="tonal"
+                      >
+                        <v-icon start size="10">{{
+                          item.source_name === "一般單品"
+                            ? "mdi-tag"
+                            : "mdi-package-variant"
+                        }}</v-icon>
+                        {{ item.source_name }}
+                      </v-chip>
+                    </div>
+                  </template>
+
                   <template v-slot:item.revenue="{ item }">
                     <div class="d-flex align-center justify-end">
                       <span class="text-success font-weight-bold mr-3"
                         >${{ item.revenue }}</span
                       >
-
                       <v-btn
                         v-if="!item.is_paid"
                         size="x-small"
@@ -73,7 +97,6 @@
                       >
                         確認收款
                       </v-btn>
-
                       <v-chip
                         v-else
                         size="x-small"
@@ -121,17 +144,30 @@ const fetchProductReport = async () => {
         id, 
         name,
         details:Exhibition_Product_Details (
-          id, 
-          event_price, 
-          is_paid,
+          id, event_price, is_paid,
           booth:booth_id ( 
-            id, 
-            booth_number, 
+            id, booth_number, 
             owner:owner_id ( nickname ),
             exhibition:exhibition_id ( id, name )
           ),
-          sales:Sales_Records ( 
-            quantity 
+          sales:Sales_Records ( quantity )
+        ),
+        bundle_shares:Bundle_Items (
+          share_weight,
+          bundle:bundle_id (
+            id, name,
+            details:Exhibition_Product_Details (
+              id, event_price, is_paid,
+              booth:booth_id ( 
+                id, booth_number, 
+                owner:owner_id ( nickname ),
+                exhibition:exhibition_id ( id, name )
+              ),
+              sales:Sales_Records ( quantity ),
+              bundle:bundle_id (
+                items:Bundle_Items ( share_weight )
+              )
+            )
           )
         )
       `
@@ -140,22 +176,22 @@ const fetchProductReport = async () => {
 
     if (error) throw error;
 
-    // 資料加工：商品 -> 展覽 -> 攤位
     productReport.value = (data || []).map((product) => {
       let totalQty = 0;
       let totalRev = 0;
-
-      // 1. 先將細節按「展覽 ID」分組
       const exhibitionGroups: Record<number, any> = {};
 
-      product.details.forEach((d: any) => {
-        const ex = d.booth.exhibition;
-        const qty = d.sales.reduce(
-          (sum: number, s: any) => sum + s.quantity,
-          0
-        );
-        const rev = qty * d.event_price;
-
+      // 統一推入報表的輔助函式，新增 sourceName 參數
+      const addToReport = (
+        ex: any,
+        booth: any,
+        qty: number,
+        rev: number,
+        detailId: number,
+        isPaid: boolean,
+        sourceName: string
+      ) => {
+        if (qty === 0) return;
         totalQty += qty;
         totalRev += rev;
 
@@ -168,29 +204,79 @@ const fetchProductReport = async () => {
             booths: [],
           };
         }
-
         exhibitionGroups[ex.id].ex_total_qty += qty;
         exhibitionGroups[ex.id].ex_total_rev += rev;
         exhibitionGroups[ex.id].booths.push({
-          detail_id: d.id, // ⭐ 關鍵：確保這裡有存入正確的 ID
-          is_paid: d.is_paid, // 確保狀態同步
-          booth_info: `${d.booth.booth_number} (${d.booth.owner.nickname})`,
-          event_price: d.event_price,
+          detail_id: detailId,
+          is_paid: isPaid,
+          booth_info: `${booth.booth_number} (${booth.owner.nickname})`,
+          source_name: sourceName, // ⭐ 存入來源名稱（單品或組合包名）
+          event_price: (rev / qty).toFixed(0),
           quantity: qty,
-          revenue: rev,
+          revenue: Math.round(rev),
+        });
+      };
+
+      // A. 處理單品
+      product.details.forEach((d: any) => {
+        const qty = d.sales.reduce(
+          (sum: number, s: any) => sum + s.quantity,
+          0
+        );
+        const rev = qty * d.event_price;
+        addToReport(
+          d.booth.exhibition,
+          d.booth,
+          qty,
+          rev,
+          d.id,
+          d.is_paid,
+          "一般單品"
+        );
+      });
+
+      // B. 處理組合包
+      product.bundle_shares.forEach((share: any) => {
+        const bundle = share.bundle;
+        if (!bundle) return;
+
+        bundle.details.forEach((bd: any) => {
+          const qty = bd.sales.reduce(
+            (sum: number, s: any) => sum + s.quantity,
+            0
+          );
+          if (qty === 0) return;
+
+          const totalWeight = bd.bundle.items.reduce(
+            (sum: number, i: any) => sum + (i.share_weight || 0),
+            0
+          );
+          const weightRatio =
+            totalWeight > 0 ? share.share_weight / totalWeight : 0;
+          const myRev = qty * bd.event_price * weightRatio;
+
+          // ⭐ 標記來自哪個組合包
+          addToReport(
+            bd.booth.exhibition,
+            bd.booth,
+            qty,
+            myRev,
+            bd.id,
+            bd.is_paid,
+            `組合包: ${bundle.name}`
+          );
         });
       });
 
       return {
         ...product,
         total_quantity: totalQty,
-        total_revenue: totalRev,
-        avg_price: totalQty > 0 ? (totalRev / totalQty).toFixed(1) : 0,
-        exhibitions: Object.values(exhibitionGroups), // 轉為陣列供前端循環
+        total_revenue: Math.round(totalRev),
+        exhibitions: Object.values(exhibitionGroups),
       };
     });
   } catch (err: any) {
-    alert("讀取報表失敗: " + err.message);
+    console.error(err);
   } finally {
     loading.value = false;
   }
