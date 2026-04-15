@@ -312,24 +312,21 @@ const deleteProduct = async (id: number) => {
   loading.value = true;
 
   try {
-    // 1. 檢查是否有「展覽攤位」正在使用此商品 (Exhibition_Product_Details)
+    // --- 檢查 1: 是否有「展覽攤位」直接上架此單品 ---
     const { count: boothCount, error: boothError } = await supabase
       .from("Exhibition_Product_Details")
       .select("*", { count: "exact", head: true })
       .eq("product_id", id);
 
     if (boothError) throw boothError;
-
     if (boothCount && boothCount > 0) {
       alert(
-        `無法刪除：此商品目前已關聯到 ${boothCount} 個展覽攤位。請先聯絡攤主移除該攤位上的商品設定。`
+        `無法刪除：此商品目前已直接上架到 ${boothCount} 個展覽攤位。請先移除攤位上的設定。`
       );
       return;
     }
 
-    // 2. 檢查是否有「銷售紀錄」 (Sales_Records)
-    // 雖然銷售紀錄是連到 Exhibition_Product_Details，
-    // 但保險起見，我們檢查該商品的任一 Detail 是否有過 Sales
+    // --- 檢查 2: 檢查「單品銷售紀錄」 ---
     const { data: details } = await supabase
       .from("Exhibition_Product_Details")
       .select("id")
@@ -337,22 +334,69 @@ const deleteProduct = async (id: number) => {
 
     if (details && details.length > 0) {
       const detailIds = details.map((d) => d.id);
-      const { count: salesCount, error: salesError } = await supabase
+      const { count: salesCount } = await supabase
         .from("Sales_Records")
         .select("*", { count: "exact", head: true })
         .in("detail_id", detailIds);
 
-      if (salesError) throw salesError;
-
       if (salesCount && salesCount > 0) {
         alert(
-          `無法刪除：此商品已有 ${salesCount} 筆銷售紀錄。為了保留帳務準確性，建議您將授權關閉或將庫存設為 0，而非刪除商品。`
+          `無法刪除：此商品已有 ${salesCount} 筆銷售紀錄，無法刪除以維持帳務準確。`
         );
         return;
       }
     }
 
-    // 3. 通過檢查後才執行刪除
+    // --- 檢查 3: 檢查是否被綁定在「組合包」中 ---
+    // 抓取所有包含此商品的組合包資訊
+    const { data: bundleLinks, error: bundleError } = await supabase
+      .from("Bundle_Items")
+      .select(
+        `
+        bundle_id,
+        bundle:bundle_id ( name )
+      `
+      )
+      .eq("product_id", id);
+
+    if (bundleError) throw bundleError;
+
+    if (bundleLinks && bundleLinks.length > 0) {
+      // 取得這些組合包的名稱清單
+      const bundleNames = bundleLinks.map((bl) => bl.bundle?.name).join("、");
+
+      // 進一步檢查這些「組合包」是否已經在展覽上架並產生銷售紀錄
+      const bundleIds = bundleLinks.map((bl) => bl.bundle_id);
+
+      // 找出這些組合包對應的 Exhibition_Product_Details
+      const { data: bundleDetails } = await supabase
+        .from("Exhibition_Product_Details")
+        .select("id")
+        .in("bundle_id", bundleIds);
+
+      if (bundleDetails && bundleDetails.length > 0) {
+        const bDetailIds = bundleDetails.map((bd) => bd.id);
+        const { count: bundleSalesCount } = await supabase
+          .from("Sales_Records")
+          .select("*", { count: "exact", head: true })
+          .in("detail_id", bDetailIds);
+
+        if (bundleSalesCount && bundleSalesCount > 0) {
+          alert(
+            `無法刪除：此商品所屬的組合包「${bundleNames}」已有銷售紀錄。為了報表準確性，禁止刪除。`
+          );
+          return;
+        }
+      }
+
+      // 如果組合包還沒賣過，但已經綁定了
+      alert(
+        `無法刪除：此商品已被綁定在組合包「${bundleNames}」中。請先至組合包設定頁面將其移除。`
+      );
+      return;
+    }
+
+    // --- 4. 通過所有檢查後執行刪除 ---
     if (!confirm("確定要刪除此商品嗎？此動作無法復原。")) return;
 
     const { error: deleteError } = await supabase
@@ -364,6 +408,7 @@ const deleteProduct = async (id: number) => {
 
     // 重新整理列表
     await fetchMyProducts();
+    alert("商品已刪除");
   } catch (err: any) {
     console.error("刪除檢查失敗:", err);
     alert("刪除失敗: " + err.message);
