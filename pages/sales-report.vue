@@ -133,16 +133,20 @@
                     <v-table density="compact" class="border rounded bg-white">
                       <thead>
                         <tr>
+                          <th>訂單編號</th>
                           <th>銷售時間</th>
                           <th>數量</th>
+                          <th>電話末三碼</th>
                           <th>支付方式</th>
                           <th class="text-right">操作</th>
                         </tr>
                       </thead>
                       <tbody>
                         <tr v-for="record in item.sales" :key="record.id">
+                          <td>{{ record.order_no }}</td>
                           <td>{{ record.time }}</td>
                           <td>{{ record.quantity }}</td>
+                          <td>{{ record.phone }}</td>
                           <td>{{ record.method }}</td>
                           <td class="text-right">
                             <v-btn
@@ -172,11 +176,11 @@
       </v-expansion-panel>
     </v-expansion-panels>
 
-    <v-dialog v-model="addDialog" max-width="500px">
-      <v-card rounded="lg">
-        <v-card-title class="bg-primary text-white d-flex align-center">
+    <v-dialog v-model="addDialog" max-width="600px" persistent>
+      <v-card rounded="xl">
+        <v-card-title class="bg-primary text-white pa-4 d-flex align-center">
           <v-icon class="mr-2">mdi-cart-plus</v-icon>
-          手動新增銷售
+          手動新增銷售 (批量模式)
         </v-card-title>
 
         <v-card-text class="pt-6">
@@ -186,9 +190,10 @@
             :items="boothsReport"
             item-title="exhibition_name"
             item-value="id"
-            variant="outlined"
+            variant="filled"
+            bg-color="grey-lighten-4"
+            :disabled="cart.length > 0"
             density="comfortable"
-            @update:model-value="saleForm.detail_id = null"
           >
             <template v-slot:item="{ props, item }">
               <v-list-item
@@ -198,75 +203,144 @@
             </template>
           </v-select>
 
-          <v-select
-            v-model="saleForm.detail_id"
-            :disabled="!selectedBoothIdInDialog"
-            label="選擇銷售項目"
-            :items="productsInSelectedBooth"
-            item-value="id"
-            variant="outlined"
-            density="comfortable"
-            class="mt-2"
-          >
-            <template v-slot:item="{ props, item }">
-              <v-list-item
-                v-bind="props"
-                :prepend-icon="
-                  item.bundle_id ? 'mdi-package-variant' : 'mdi-tag-outline'
+          <v-divider class="my-4"></v-divider>
+
+          <v-row v-if="selectedBoothIdInDialog" align="center">
+            <v-col cols="7">
+              <v-select
+                v-model="tempItem.detail"
+                label="選擇商品 / 組合包"
+                :items="productsInSelectedBooth"
+                :item-title="
+                  (item) =>
+                    item.bundle_id ? item.bundle.name : item.product.name
                 "
-                :title="
-                  item.bundle_id ? `${item.bundle.name}` : item.product.name
-                "
-                :subtitle="`售價: $${item.event_price}`"
-                :disabled="item.is_paid"
+                return-object
+                variant="outlined"
+                density="compact"
+                hide-details
               >
-                <template v-slot:append v-if="item.is_paid">
-                  <v-icon color="blue" size="small">mdi-lock</v-icon>
+                <template v-slot:item="{ props, item }">
+                  <v-list-item
+                    v-bind="props"
+                    :disabled="item.is_paid"
+                    :title="
+                      item.bundle_id ? item.bundle.name : item.product.name
+                    "
+                    :subtitle="
+                      item.is_paid
+                        ? '已結清 (不可再新增銷量)'
+                        : `售價: $${item.event_price}`
+                    "
+                  >
+                    <template v-slot:append v-if="item.is_paid">
+                      <v-icon color="blue" size="small">mdi-lock</v-icon>
+                    </template>
+                  </v-list-item>
                 </template>
-              </v-list-item>
-            </template>
-            <template v-slot:selection="{ item }">
-              <span class="d-flex align-center">
-                <v-icon size="small" class="mr-2">{{
+              </v-select>
+            </v-col>
+            <v-col cols="3">
+              <v-text-field
+                v-model.number="tempItem.quantity"
+                type="number"
+                label="數量"
+                min="1"
+                variant="outlined"
+                density="compact"
+                hide-details
+              ></v-text-field>
+            </v-col>
+            <v-col cols="2">
+              <v-btn
+                color="primary"
+                icon="mdi-plus"
+                @click="addToCart"
+                :disabled="!tempItem.detail"
+              ></v-btn>
+            </v-col>
+          </v-row>
+
+          <v-list v-if="cart.length > 0" class="mt-4 border rounded-lg">
+            <v-list-subheader class="font-weight-bold text-primary"
+              >待提交清單</v-list-subheader
+            >
+            <v-list-item v-for="(item, index) in cart" :key="index">
+              <template v-slot:prepend>
+                <v-icon>{{
                   item.bundle_id ? "mdi-package-variant" : "mdi-tag-outline"
                 }}</v-icon>
-                {{ item.bundle_id ? `${item.bundle.name}` : item.product.name }}
-              </span>
-            </template>
-          </v-select>
+              </template>
+              <v-list-item-title class="font-weight-bold">
+                {{ item.name }} x {{ item.quantity }}
+              </v-list-item-title>
+              <v-list-item-subtitle
+                >小計: ${{
+                  item.event_price * item.quantity
+                }}</v-list-item-subtitle
+              >
+              <template v-slot:append>
+                <v-btn
+                  icon="mdi-close-circle"
+                  variant="text"
+                  color="grey"
+                  size="small"
+                  @click="cart.splice(index, 1)"
+                ></v-btn>
+              </template>
+            </v-list-item>
 
-          <v-text-field
-            v-model.number="saleForm.quantity"
-            label="銷售數量"
-            type="number"
-            min="1"
-            variant="outlined"
-            density="comfortable"
-            class="mt-2"
-          />
+            <v-divider></v-divider>
+            <div
+              class="pa-4 d-flex justify-space-between align-center bg-grey-lighten-5"
+            >
+              <span class="text-subtitle-1">總金額</span>
+              <span class="text-h6 font-weight-black text-primary"
+                >${{ cartTotal }}</span
+              >
+            </div>
+          </v-list>
 
-          <v-label class="mb-2 d-block text-caption">支付方式</v-label>
-          <v-btn-toggle
-            v-model="saleForm.method"
-            color="primary"
-            mandatory
-            variant="outlined"
-            class="d-flex w-100 mb-4"
-            density="comfortable"
-          >
-            <v-btn
-              value="現金 - 手動"
-              class="flex-grow-1"
-              prepend-icon="mdi-cash"
-              >現金</v-btn
+          <div v-if="cart.length > 0" class="mt-4">
+            <v-label class="mb-2 d-block text-caption font-weight-bold"
+              >訂單聯絡電話 (後三碼將用於編號)</v-label
             >
-            <v-btn
-              value="Line Pay - 手動"
-              class="flex-grow-1"
-              prepend-icon="mdi-wallet"
-              >Line Pay</v-btn
+            <v-text-field
+              v-model="saleForm.phone"
+              placeholder="例如：0912345678"
+              variant="outlined"
+              density="comfortable"
+              prepend-inner-icon="mdi-phone"
+              maxlength="10"
+            ></v-text-field>
+          </div>
+
+          <div v-if="cart.length > 0" class="mt-6">
+            <v-label class="mb-2 d-block text-caption font-weight-bold"
+              >支付方式</v-label
             >
-          </v-btn-toggle>
+            <v-btn-toggle
+              v-model="saleForm.method"
+              color="primary"
+              mandatory
+              variant="outlined"
+              class="d-flex w-100"
+              density="comfortable"
+            >
+              <v-btn
+                value="現金 - 手動"
+                class="flex-grow-1"
+                prepend-icon="mdi-cash"
+                >現金</v-btn
+              >
+              <v-btn
+                value="Line Pay - 手動"
+                class="flex-grow-1"
+                prepend-icon="mdi-wallet"
+                >Line Pay</v-btn
+              >
+            </v-btn-toggle>
+          </div>
         </v-card-text>
 
         <v-divider></v-divider>
@@ -279,11 +353,12 @@
           <v-btn
             color="primary"
             variant="elevated"
-            @click="saveSale"
+            @click="saveBulkSale"
             :loading="loading"
-            class="px-6"
+            :disabled="cart.length === 0"
+            class="px-8 rounded-lg"
           >
-            確認新增
+            送出訂單
           </v-btn>
         </v-card-actions>
       </v-card>
@@ -304,8 +379,15 @@ const saleForm = ref({
   detail_id: null as number | null,
   quantity: 1,
   method: "現金 - 手動",
+  phone: "", // 新增電話欄位
 });
 const selectedBoothIdInDialog = ref<number | null>(null);
+
+const cart = ref<any[]>([]);
+const tempItem = ref({
+  detail: null as any,
+  quantity: 1,
+});
 
 const headers: ReadonlyArray<{
   title: string;
@@ -324,16 +406,26 @@ const headers: ReadonlyArray<{
 
 const productsInSelectedBooth = computed(() => {
   if (!selectedBoothIdInDialog.value) return [];
+
   const target = boothsReport.value.find(
     (b) => b.id === selectedBoothIdInDialog.value
   );
-  return target?.rawDetails || [];
+
+  if (!target || !target.rawDetails) return [];
+
+  return target.rawDetails.filter((d: any) => !d.is_paid);
+});
+
+const cartTotal = computed(() => {
+  return cart.value.reduce(
+    (sum, item) => sum + item.event_price * item.quantity,
+    0
+  );
 });
 
 const fetchSalesReport = async () => {
   if (!userStore.profile?.id) return;
   loading.value = true;
-
   try {
     const { data, error } = await supabase
       .from("Exhibition_Booths")
@@ -351,7 +443,10 @@ const fetchSalesReport = async () => {
               product:product_id ( id, name, seller:seller_id ( id, nickname ) )
             )
           ),
-          sales:Sales_Records ( id, quantity, created_at, method )
+          sales:Sales_Records ( 
+            id, quantity, created_at,
+            order:order_id ( method, order_number, phone )
+          )
         )
       `
       )
@@ -370,6 +465,9 @@ const fetchSalesReport = async () => {
         const formattedSales = salesArr.map((s) => ({
           ...s,
           time: new Date(s.created_at).toLocaleString(),
+          method: s.order?.method || "未知",
+          phone: s.order?.phone ? s.order.phone.slice(-3) : "無",
+          order_no: s.order?.order_number || "無",
         }));
 
         if (detail.bundle_id && detail.bundle) {
@@ -484,25 +582,39 @@ const fetchSalesReport = async () => {
   }
 };
 
-const saveSale = async () => {
-  if (!saleForm.value.detail_id || saleForm.value.quantity <= 0) return;
+const saveBulkSale = async () => {
+  if (cart.value.length === 0 || !selectedBoothIdInDialog.value) return;
+  if (!saleForm.value.phone) {
+    alert("請輸入聯絡電話以生成訂單編號");
+    return;
+  }
+
   loading.value = true;
   try {
-    const { error } = await supabase.rpc("manual_add_sale", {
-      // 確保 detail_id 是 Number
-      p_detail_id: Number(saleForm.value.detail_id),
-      // 確保數量是 Number
-      p_quantity: Math.floor(Number(saleForm.value.quantity)),
-      p_method: String(saleForm.value.method),
+    const itemsJson = cart.value.map((item) => ({
+      detail_id: item.detail_id,
+      quantity: item.quantity,
+    }));
+
+    const { data, error } = await supabase.rpc("pos_checkout_v3", {
+      p_booth_id: selectedBoothIdInDialog.value,
+      p_items: itemsJson,
+      p_method: saleForm.value.method,
+      p_phone: saleForm.value.phone,
     });
 
     if (error) throw error;
 
+    const result = data[0];
     addDialog.value = false;
+
+    // 成功提示包含訂單編號
+    alert(`結帳成功！\n訂單編號：${result.r_order_number}`);
+
     await fetchSalesReport();
-    alert("新增成功！庫存已同步扣除");
+    resetForm();
   } catch (err: any) {
-    alert("新增失敗: " + err.message);
+    alert("結帳失敗: " + err.message);
   } finally {
     loading.value = false;
   }
@@ -530,7 +642,37 @@ const deleteSingleRecord = async (recordId: number) => {
 
 const resetForm = () => {
   selectedBoothIdInDialog.value = null;
-  saleForm.value = { detail_id: null, quantity: 1, method: "現金 - 手動" };
+  cart.value = [];
+  tempItem.value = { detail: null, quantity: 1 };
+  saleForm.value = {
+    detail_id: null,
+    quantity: 1,
+    method: "現金 - 手動",
+    phone: "",
+  };
+};
+
+const addToCart = () => {
+  if (!tempItem.value.detail || tempItem.value.quantity < 1) return;
+
+  const d = tempItem.value.detail;
+  // 檢查是否已存在，存在則累加數量
+  const existing = cart.value.find((c) => c.detail_id === d.id);
+  if (existing) {
+    existing.quantity += tempItem.value.quantity;
+  } else {
+    cart.value.push({
+      detail_id: d.id,
+      name: d.bundle_id ? d.bundle.name : d.product.name,
+      event_price: d.event_price,
+      quantity: tempItem.value.quantity,
+      bundle_id: d.bundle_id,
+    });
+  }
+
+  // 重置選取框
+  tempItem.value.detail = null;
+  tempItem.value.quantity = 1;
 };
 
 watch(addDialog, (val) => {

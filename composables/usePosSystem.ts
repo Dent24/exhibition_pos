@@ -8,6 +8,10 @@ export const usePosSystem = () => {
   const cart = ref<any[]>([]);
   const loading = ref(false);
 
+  const checkoutForm = ref({
+    phone: '',
+  });
+
   // 輔助函式：計算組合包內的最少庫存
   const getInventory = (item: any) => {
     if (item.bundle_id) {
@@ -106,41 +110,46 @@ export const usePosSystem = () => {
 
   // 修改 checkout：結帳後執行 fetchProducts 刷新庫存
   // usePosSystem.ts 內
-const checkout = async (paymentMethod: string) => { // 接收參數
-  if (cart.value.length === 0) return;
-  loading.value = true;
+  const checkout = async (paymentMethod: string) => {
+    if (cart.value.length === 0) return;
+    if (!selectedBooth.value) return;
+    
+    // 強制要求輸入電話（至少後三碼），以符合訂單編號邏輯
+    if (!checkoutForm.value.phone) {
+      alert('請輸入聯絡電話以產生訂單編號');
+      return;
+    }
 
-  try {
-    const itemsToProcess = cart.value.map(c => ({
-      detail_id: c.id,
-      quantity: c.quantity
-    }));
+    loading.value = true;
+    try {
+      const itemsToProcess = cart.value.map(c => ({
+        detail_id: c.id,
+        quantity: c.quantity
+      }));
 
-    const { error } = await supabase.rpc('pos_checkout', {
-      p_items: itemsToProcess,
-      p_method: paymentMethod // 傳遞支付方式
-    });
+      // 呼叫最新的 V3 結帳函數
+      const { data, error } = await supabase.rpc('pos_checkout_v3', {
+        p_booth_id: selectedBooth.value,
+        p_items: itemsToProcess,
+        p_method: paymentMethod,
+        p_phone: checkoutForm.value.phone
+      });
 
-    if (error) throw error;
-  
-      alert('結帳成功！');
-      cart.value = [];
+      if (error) throw error;
+
+      const result = data[0];
+      alert(`結帳成功！\n訂單編號：${result.r_order_number}`);
       
-      // 重點：刷新當前攤位的商品列表（這會更新庫存數字）
+      // 清空購物車與表單
+      cart.value = [];
+      checkoutForm.value.phone = '';
+      
+      // 刷新庫存
       await fetchProducts(); 
 
     } catch (err: any) {
       console.error('結帳失敗:', err.message);
-      
-      if (err.message.includes('已完成收款確認')) {
-        alert('結帳失敗：部分商品已被賣家確認收款鎖定，請移除後再結帳。');
-      } else if (err.message.includes('庫存不足')) {
-        alert('結帳失敗：部分商品庫存不足。');
-      } else {
-        alert('結帳失敗：' + err.message);
-      }
-      
-      // 發生錯誤時也刷新一次，確保畫面上的庫存是最新的
+      alert('結帳失敗：' + err.message);
       await fetchProducts();
     } finally {
       loading.value = false;
@@ -151,6 +160,6 @@ const checkout = async (paymentMethod: string) => { // 接收參數
 
   return { 
     booths, selectedBooth, products, cart, totalAmount, 
-    addToCart, checkout, loading, fetchProducts, getInventory, getDisplayName 
+    addToCart, checkout, loading, fetchProducts, getInventory, getDisplayName, checkoutForm
   };
 };

@@ -198,6 +198,20 @@
 
         <v-divider></v-divider>
 
+        <div v-if="cart.length > 0" class="px-6 pt-4 bg-white">
+          <v-text-field
+            v-model="checkoutForm.phone"
+            label="客戶電話 (產單編號用)"
+            placeholder="輸入電話或後三碼"
+            variant="filled"
+            density="comfortable"
+            hide-details
+            prepend-inner-icon="mdi-phone"
+            maxlength="10"
+            rounded="lg"
+          ></v-text-field>
+        </div>
+
         <div class="pa-6 bg-white">
           <div class="d-flex justify-space-between align-center mb-6">
             <span class="text-h6 font-weight-bold">應付總計</span>
@@ -257,12 +271,17 @@ const {
   addToCart,
   checkout,
   loading,
+  checkoutForm,
 } = usePosSystem();
 
 const showCart = ref(false);
 
 // 封裝一個結帳處理，結帳完關閉 BottomSheet
 const handleCheckout = async (method: string) => {
+  if (!checkoutForm.value.phone) {
+    alert("請輸入聯絡電話以生成訂單編號");
+    return;
+  }
   await checkout(method);
   if (cart.value.length === 0) {
     showCart.value = false;

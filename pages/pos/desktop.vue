@@ -114,6 +114,21 @@
           </template>
         </v-list-item>
       </v-list>
+
+      <div class="px-6 py-2 bg-white">
+        <v-text-field
+          v-model="checkoutForm.phone"
+          label="客戶電話 (產單編號用)"
+          placeholder="輸入電話或後三碼"
+          variant="outlined"
+          density="compact"
+          hide-details
+          prepend-inner-icon="mdi-phone"
+          maxlength="10"
+          class="mb-2"
+        ></v-text-field>
+      </div>
+
       <div class="pa-6 border-t-lg bg-grey-lighten-5">
         <div class="d-flex justify-space-between align-end mb-4">
           <span class="text-h5 font-weight-bold">總金額</span>
@@ -173,6 +188,7 @@ const {
   addToCart,
   checkout,
   loading,
+  checkoutForm,
 } = usePosSystem();
 
 definePageMeta({
