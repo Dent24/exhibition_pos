@@ -460,7 +460,6 @@ const fetchSalesReport = async () => {
       booth.details.forEach((detail) => {
         const salesArr = detail.sales || [];
         const totalQty = salesArr.reduce((s, r) => s + (r.quantity || 0), 0);
-        if (totalQty === 0) return;
 
         const formattedSales = salesArr.map((s) => ({
           ...s,
