@@ -143,7 +143,7 @@
               block
               color="blue-darken-2"
               height="60"
-              @click="checkout('現金')"
+              @click="handleCheckout('現金')"
               >現金結帳</v-btn
             >
           </v-col>
@@ -152,7 +152,7 @@
               block
               color="green-darken-1"
               height="60"
-              @click="checkout('Line Pay')"
+              @click="handleCheckout('Line Pay')"
               >Line Pay</v-btn
             >
           </v-col>
@@ -174,10 +174,53 @@
       <v-icon size="32">mdi-home</v-icon>
       <v-tooltip activator="parent" location="top">回到首頁</v-tooltip>
     </v-btn>
+
+    <v-dialog v-model="showSuccessDialog" max-width="400" persistent>
+      <v-card class="rounded-xl pa-4 text-center">
+        <v-card-text>
+          <v-icon color="success" size="64" class="mb-2"
+            >mdi-check-circle</v-icon
+          >
+          <div class="text-h5 font-weight-black mb-1">結帳成功</div>
+          <div class="text-subtitle-1 mb-4">
+            訂單編號：{{ lastOrder?.number }}
+          </div>
+
+          <div class="bg-grey-lighten-4 pa-4 rounded-lg d-inline-block">
+            <qrcode-vue
+              v-if="orderUrl"
+              :value="orderUrl"
+              :size="200"
+              level="H"
+              render-as="svg"
+            />
+          </div>
+
+          <p class="text-caption text-grey-darken-1 mt-4">
+            請消費者掃描上方 QR Code<br />
+            輸入<b>電話後三碼</b>即可查看訂單細節
+          </p>
+        </v-card-text>
+
+        <v-card-actions>
+          <v-btn
+            block
+            color="primary"
+            size="large"
+            variant="flat"
+            @click="showSuccessDialog = false"
+          >
+            完成 (下一個客人)
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </v-row>
 </template>
 
 <script setup lang="ts">
+import QrcodeVue from "qrcode.vue";
+
 // 核心邏輯 (與手機版共用)
 const {
   booths,
@@ -189,9 +232,27 @@ const {
   checkout,
   loading,
   checkoutForm,
+  lastOrder,
 } = usePosSystem();
 
 definePageMeta({
   layout: "clear",
 });
+
+const showSuccessDialog = ref(false);
+
+// 動態產生訂單查詢網址 (請替換為你的實際網域)
+const orderUrl = computed(() => {
+  if (!lastOrder.value?.token) return "";
+  const baseUrl = window.location.origin;
+  return `${baseUrl}/order/${lastOrder.value.token}`;
+});
+
+// 包裝原有的 checkout 邏輯
+const handleCheckout = async (method: string) => {
+  const success = await checkout(method);
+  if (success) {
+    showSuccessDialog.value = true;
+  }
+};
 </script>

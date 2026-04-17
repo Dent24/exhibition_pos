@@ -12,6 +12,8 @@ export const usePosSystem = () => {
     phone: '',
   });
 
+  const lastOrder = ref<{ token: string, number: string } | null>(null);
+
   // 輔助函式：計算組合包內的最少庫存
   const getInventory = (item: any) => {
     if (item.bundle_id) {
@@ -122,15 +124,9 @@ export const usePosSystem = () => {
 
     loading.value = true;
     try {
-      const itemsToProcess = cart.value.map(c => ({
-        detail_id: c.id,
-        quantity: c.quantity
-      }));
-
-      // 呼叫最新的 V3 結帳函數
       const { data, error } = await supabase.rpc('pos_checkout_v3', {
         p_booth_id: selectedBooth.value,
-        p_items: itemsToProcess,
+        p_items: cart.value.map(c => ({ detail_id: c.id, quantity: c.quantity })),
         p_method: paymentMethod,
         p_phone: checkoutForm.value.phone
       });
@@ -138,19 +134,20 @@ export const usePosSystem = () => {
       if (error) throw error;
 
       const result = data[0];
-      alert(`結帳成功！\n訂單編號：${result.r_order_number}`);
-      
-      // 清空購物車與表單
+      // 儲存結帳結果，包含 order_token (UUID)
+      lastOrder.value = {
+        token: result.r_order_token, // 確保後端 RPC 有回傳這個欄位
+        number: result.r_order_number
+      };
+
       cart.value = [];
       checkoutForm.value.phone = '';
-      
-      // 刷新庫存
       await fetchProducts(); 
-
+      
+      return true; // 代表成功
     } catch (err: any) {
-      console.error('結帳失敗:', err.message);
       alert('結帳失敗：' + err.message);
-      await fetchProducts();
+      return false;
     } finally {
       loading.value = false;
     }
@@ -159,7 +156,7 @@ export const usePosSystem = () => {
   onMounted(init);
 
   return { 
-    booths, selectedBooth, products, cart, totalAmount, 
+    booths, selectedBooth, products, cart, totalAmount, lastOrder,
     addToCart, checkout, loading, fetchProducts, getInventory, getDisplayName, checkoutForm
   };
 };

@@ -19,8 +19,7 @@
 
           <v-card-text>
             <p class="text-grey-darken-1 mb-6 text-center">
-              您已進入加密連結，請輸入訂單聯絡電話的
-              <b>後三碼</b> 以解鎖訂單詳情。
+              請輸入訂單聯絡電話的<b>後三碼</b> 。
             </p>
             <v-otp-input
               v-model="authCode"

@@ -258,10 +258,50 @@
       <v-icon size="32">mdi-home</v-icon>
       <v-tooltip activator="parent" location="top">回到首頁</v-tooltip>
     </v-btn>
+
+    <v-dialog v-model="showSuccessDialog" persistent max-width="340">
+      <v-card class="rounded-xl text-center pa-6">
+        <v-icon color="success" size="64" class="mb-2">mdi-check-circle</v-icon>
+        <div class="text-h6 font-weight-black">結帳成功！</div>
+        <div class="text-caption text-grey-darken-1 mb-4">
+          訂單編號：{{ lastOrder?.number }}
+        </div>
+
+        <div class="d-flex justify-center bg-white pa-2 rounded-lg border">
+          <qrcode-vue
+            v-if="orderUrl"
+            :value="orderUrl"
+            :size="220"
+            level="H"
+            render-as="svg"
+          />
+        </div>
+
+        <div class="mt-4 text-body-2 text-grey-darken-2">
+          請讓客人掃描 QR Code<br />
+          並告知輸入 <b>電話後三碼</b> 即可對帳
+        </div>
+
+        <v-card-actions class="mt-4 pa-0">
+          <v-btn
+            block
+            color="primary"
+            size="large"
+            variant="flat"
+            rounded="pill"
+            @click="closeSuccessDialog"
+          >
+            完成，接下一單
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </v-layout>
 </template>
 
 <script setup lang="ts">
+import QrcodeVue from "qrcode.vue";
+
 const {
   booths,
   selectedBooth,
@@ -272,20 +312,38 @@ const {
   checkout,
   loading,
   checkoutForm,
+  lastOrder,
 } = usePosSystem();
 
 const showCart = ref(false);
+const showSuccessDialog = ref(false);
 
-// 封裝一個結帳處理，結帳完關閉 BottomSheet
+// 動態產生訂單查詢網址
+const orderUrl = computed(() => {
+  if (!lastOrder.value?.token) return "";
+  // 這裡會自動抓取目前網頁的 domain
+  const baseUrl = window.location.origin;
+  return `${baseUrl}/order/${lastOrder.value.token}`;
+});
+
+// 封裝結帳處理
 const handleCheckout = async (method: string) => {
   if (!checkoutForm.value.phone) {
     alert("請輸入聯絡電話以生成訂單編號");
     return;
   }
-  await checkout(method);
-  if (cart.value.length === 0) {
-    showCart.value = false;
+
+  const success = await checkout(method);
+
+  if (success) {
+    showCart.value = false; // 關閉購物車清單
+    showSuccessDialog.value = true; // 開啟 QR Code 彈窗
   }
+};
+
+const closeSuccessDialog = () => {
+  showSuccessDialog.value = false;
+  // 可以在這裡做一些重置操作，如果有需要的話
 };
 
 definePageMeta({
