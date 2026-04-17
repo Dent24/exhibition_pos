@@ -245,7 +245,7 @@ const showSuccessDialog = ref(false);
 const orderUrl = computed(() => {
   if (!lastOrder.value?.token) return "";
   const baseUrl = window.location.origin;
-  return `${baseUrl}/order/${lastOrder.value.token}`;
+  return `${baseUrl}/exhibition_pos/order/${lastOrder.value.token}`;
 });
 
 // 包裝原有的 checkout 邏輯

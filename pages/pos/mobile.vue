@@ -323,7 +323,7 @@ const orderUrl = computed(() => {
   if (!lastOrder.value?.token) return "";
   // 這裡會自動抓取目前網頁的 domain
   const baseUrl = window.location.origin;
-  return `${baseUrl}/order/${lastOrder.value.token}`;
+  return `${baseUrl}/exhibition_pos/order/${lastOrder.value.token}`;
 });
 
 // 封裝結帳處理

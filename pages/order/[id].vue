@@ -19,7 +19,7 @@
 
           <v-card-text>
             <p class="text-grey-darken-1 mb-6 text-center">
-              請輸入訂單聯絡電話的<b>後三碼</b> 。
+              請輸入訂單聯絡電話的後三碼 。
             </p>
             <v-otp-input
               v-model="authCode"
