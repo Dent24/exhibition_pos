@@ -19,7 +19,8 @@ watch(
     if (!newUser && !mainStore.isLoggedIn) {
       if (
         router.currentRoute.value.path !== "/login" &&
-        router.currentRoute.value.path !== "/register"
+        router.currentRoute.value.path !== "/register" &&
+        router.currentRoute.value.name !== "order-id"
       ) {
         router.push("/login");
       }
