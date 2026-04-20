@@ -239,6 +239,10 @@ definePageMeta({
   layout: "clear",
 });
 
+useHead({
+  title: "POS系統",
+});
+
 const showSuccessDialog = ref(false);
 
 // 動態產生訂單查詢網址 (請替換為你的實際網域)

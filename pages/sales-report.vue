@@ -370,6 +370,10 @@
 const supabase = useSupabaseClient();
 const userStore = useMainStore();
 
+useHead({
+  title: "銷售紀錄查詢",
+});
+
 const loading = ref(false);
 const boothsReport = ref<any[]>([]);
 const addDialog = ref(false);

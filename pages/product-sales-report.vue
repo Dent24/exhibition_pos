@@ -3,11 +3,9 @@
     <v-row align="end" class="mb-6">
       <v-col>
         <p class="text-display-medium font-weight-black text-black mb-2">
-          展覽銷售概覽
+          商品銷售統計
         </p>
-        <p class="text-grey-darken-1 mb-0">
-          以展覽場次為核心，管理您的攤位分潤與收款狀態。
-        </p>
+        <p class="text-grey-darken-1 mb-0">查看商品在各展覽的銷售表現</p>
       </v-col>
     </v-row>
 
@@ -170,6 +168,10 @@
 <script setup lang="ts">
 const supabase = useSupabaseClient();
 const userStore = useMainStore();
+
+useHead({
+  title: "商品銷售統計",
+});
 
 const loading = ref(false);
 const exhibitionReport = ref<any[]>([]);

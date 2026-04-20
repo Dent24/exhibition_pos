@@ -139,6 +139,10 @@ definePageMeta({
   layout: "clear",
 });
 
+useHead({
+  title: "註冊",
+});
+
 // 1. 表單狀態與類型限制
 const form = ref<VForm | null>(null);
 const valid = ref<boolean>(true);

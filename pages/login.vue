@@ -84,6 +84,10 @@ definePageMeta({
   layout: "clear",
 });
 
+useHead({
+  title: "登入",
+});
+
 const mainStore = useMainStore();
 const supabase = useSupabaseClient();
 const router = useRouter();

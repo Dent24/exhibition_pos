@@ -267,6 +267,10 @@ interface Exhibition {
   location: string;
 }
 
+useHead({
+  title: "系統首頁",
+});
+
 const supabase = useSupabaseClient();
 const mainStore = useMainStore();
 const router = useRouter();

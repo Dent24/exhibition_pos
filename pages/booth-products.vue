@@ -434,6 +434,10 @@ const headers: ReadonlyArray<{
   { title: "操作", key: "actions", align: "end" },
 ];
 
+useHead({
+  title: "設定攤位商品",
+});
+
 const loading = ref(false);
 const boothsData = ref<any[]>([]);
 const rawAuthorizedProducts = ref<any[]>([]);

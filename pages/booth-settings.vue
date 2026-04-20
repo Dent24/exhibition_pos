@@ -266,6 +266,10 @@ interface BoothWithExhibition {
   exhibitions: Exhibition; // Supabase Join 回來的資料
 }
 
+useHead({
+  title: "設定參展攤位",
+});
+
 const supabase = useSupabaseClient();
 const userStore = useMainStore();
 

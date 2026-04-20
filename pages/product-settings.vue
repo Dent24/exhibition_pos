@@ -212,6 +212,10 @@ interface Product {
 const supabase = useSupabaseClient();
 const userStore = useMainStore();
 
+useHead({
+  title: "設定商品",
+});
+
 const headers: ReadonlyArray<{
   title: string;
   key: string;

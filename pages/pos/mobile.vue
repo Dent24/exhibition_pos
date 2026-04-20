@@ -349,4 +349,8 @@ const closeSuccessDialog = () => {
 definePageMeta({
   layout: "clear",
 });
+
+useHead({
+  title: "POS系統",
+});
 </script>

@@ -137,6 +137,10 @@ definePageMeta({
   layout: "clear",
 });
 
+useHead({
+  title: "訂單明細",
+});
+
 const loading = ref(false);
 const isVerified = ref(false);
 const authCode = ref("");

@@ -174,6 +174,10 @@ interface ProductWithPermissions {
   permissions: Permission[];
 }
 
+useHead({
+  title: "設定可售攤主",
+});
+
 const supabase = useSupabaseClient();
 const userStore = useMainStore();
 
