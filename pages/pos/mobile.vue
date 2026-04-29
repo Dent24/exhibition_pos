@@ -328,11 +328,6 @@ const orderUrl = computed(() => {
 
 // 封裝結帳處理
 const handleCheckout = async (method: string) => {
-  if (!checkoutForm.value.phone) {
-    alert("請輸入聯絡電話以生成訂單編號");
-    return;
-  }
-
   const success = await checkout(method);
 
   if (success) {
