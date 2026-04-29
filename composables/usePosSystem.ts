@@ -112,15 +112,11 @@ export const usePosSystem = () => {
 
   // 修改 checkout：結帳後執行 fetchProducts 刷新庫存
   // usePosSystem.ts 內
+  const ANONYMOUS_PHONE = '0900000000'
+
   const checkout = async (paymentMethod: string) => {
     if (cart.value.length === 0) return;
     if (!selectedBooth.value) return;
-    
-    // 強制要求輸入電話（至少後三碼），以符合訂單編號邏輯
-    if (!checkoutForm.value.phone) {
-      alert('請輸入聯絡電話以產生訂單編號');
-      return;
-    }
 
     loading.value = true;
     try {
@@ -128,15 +124,14 @@ export const usePosSystem = () => {
         p_booth_id: selectedBooth.value,
         p_items: cart.value.map(c => ({ detail_id: c.id, quantity: c.quantity })),
         p_method: paymentMethod,
-        p_phone: checkoutForm.value.phone
+        p_phone: checkoutForm.value.phone || ANONYMOUS_PHONE
       });
 
       if (error) throw error;
 
       const result = data[0];
-      // 儲存結帳結果，包含 order_token (UUID)
       lastOrder.value = {
-        token: result.r_order_token, // 確保後端 RPC 有回傳這個欄位
+        token: result.r_order_token,
         number: result.r_order_number
       };
 
@@ -144,7 +139,7 @@ export const usePosSystem = () => {
       checkoutForm.value.phone = '';
       await fetchProducts(); 
       
-      return true; // 代表成功
+      return true;
     } catch (err: any) {
       alert('結帳失敗：' + err.message);
       return false;
