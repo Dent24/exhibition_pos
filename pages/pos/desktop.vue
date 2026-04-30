@@ -12,6 +12,23 @@
         :loading="loading"
       ></v-select>
 
+      <!-- 同步狀態列 -->
+      <v-alert
+        v-if="pendingCount > 0"
+        :color="isSyncing ? 'blue' : 'orange'"
+        variant="tonal"
+        density="compact"
+        class="mb-4"
+        :icon="isSyncing ? 'mdi-cloud-sync' : 'mdi-cloud-upload-outline'"
+      >
+        <span v-if="isSyncing"
+          >正在同步第 1 筆，共 {{ pendingCount }} 筆待上傳…</span
+        >
+        <span v-else
+          >離線中，{{ pendingCount }} 筆交易待同步（網路恢復後自動上傳）</span
+        >
+      </v-alert>
+
       <v-row>
         <v-col v-for="item in products" :key="item.id" cols="4" lg="3">
           <v-card
@@ -181,25 +198,41 @@
           <v-icon color="success" size="64" class="mb-2"
             >mdi-check-circle</v-icon
           >
-          <div class="text-h5 font-weight-black mb-1">結帳成功</div>
+          <div class="text-h5 font-weight-black mb-1">交易已記錄</div>
           <div class="text-subtitle-1 mb-4">
-            訂單編號：{{ lastOrder?.number }}
+            流水號：{{ lastOrder?.number }}
           </div>
 
-          <div class="bg-grey-lighten-4 pa-4 rounded-lg d-inline-block">
-            <qrcode-vue
-              v-if="orderUrl"
-              :value="orderUrl"
-              :size="200"
-              level="H"
-              render-as="svg"
-            />
-          </div>
+          <!-- 已同步：顯示 QR Code -->
+          <template v-if="orderUrl">
+            <div class="bg-grey-lighten-4 pa-4 rounded-lg d-inline-block">
+              <qrcode-vue
+                :value="orderUrl"
+                :size="200"
+                level="H"
+                render-as="svg"
+              />
+            </div>
+            <p class="text-caption text-grey-darken-1 mt-4">
+              請消費者掃描上方 QR Code<br />
+              輸入<b>電話後三碼</b>即可查看訂單細節
+            </p>
+          </template>
 
-          <p class="text-caption text-grey-darken-1 mt-4">
-            請消費者掃描上方 QR Code<br />
-            輸入<b>電話後三碼</b>即可查看訂單細節
-          </p>
+          <!-- 待同步：顯示提示 -->
+          <template v-else>
+            <div
+              class="bg-orange-lighten-5 pa-4 rounded-lg d-flex align-center"
+            >
+              <v-icon color="orange-darken-2" class="mr-3"
+                >mdi-cloud-upload-outline</v-icon
+              >
+              <div class="text-caption text-orange-darken-3 text-left">
+                目前處於離線或高流量模式，<br />
+                交易已本地記錄，網路恢復後將自動同步。
+              </div>
+            </div>
+          </template>
         </v-card-text>
 
         <v-card-actions>
@@ -221,7 +254,6 @@
 <script setup lang="ts">
 import QrcodeVue from "qrcode.vue";
 
-// 核心邏輯 (與手機版共用)
 const {
   booths,
   selectedBooth,
@@ -233,6 +265,8 @@ const {
   loading,
   checkoutForm,
   lastOrder,
+  isSyncing,
+  pendingCount,
 } = usePosSystem();
 
 definePageMeta({
@@ -245,14 +279,12 @@ useHead({
 
 const showSuccessDialog = ref(false);
 
-// 動態產生訂單查詢網址 (請替換為你的實際網域)
 const orderUrl = computed(() => {
   if (!lastOrder.value?.token) return "";
   const baseUrl = window.location.origin;
   return `${baseUrl}/exhibition_pos/order/${lastOrder.value.token}`;
 });
 
-// 包裝原有的 checkout 邏輯
 const handleCheckout = async (method: string) => {
   const success = await checkout(method);
   if (success) {
