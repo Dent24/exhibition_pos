@@ -91,7 +91,7 @@
               <thead>
                 <tr class="bg-grey-lighten-4">
                   <th class="text-left">銷售項目 / 來源</th>
-                  <th class="text-center">單價 (拆算)</th>
+                  <th class="text-center">原價/件</th>
                   <th class="text-center">銷量</th>
                   <th class="text-right">應得小計</th>
                 </tr>
@@ -186,9 +186,9 @@ const fetchExhibitionReport = async () => {
       .from("Products")
       .select(
         `
-        id, name,
+        id, name, original_price,
         details:Exhibition_Product_Details (
-          id, event_price, is_paid,
+          id, is_paid,
           booth:booth_id ( 
             id, booth_number, 
             owner:owner_id ( nickname ),
@@ -197,18 +197,16 @@ const fetchExhibitionReport = async () => {
           sales:Sales_Records ( quantity )
         ),
         bundle_shares:Bundle_Items (
-          share_weight,
           bundle:bundle_id (
             id, name,
             details:Exhibition_Product_Details (
-              id, event_price, is_paid,
+              id, is_paid,
               booth:booth_id ( 
                 id, booth_number, 
                 owner:owner_id ( nickname ),
                 exhibition:exhibition_id ( id, name )
               ),
-              sales:Sales_Records ( quantity ),
-              bundle:bundle_id ( items:Bundle_Items ( share_weight ) )
+              sales:Sales_Records ( quantity )
             )
           )
         )
@@ -305,12 +303,12 @@ const fetchExhibitionReport = async () => {
           d.booth,
           p.name,
           qty,
-          qty * d.event_price,
+          qty * p.original_price,
           d.id,
           d.is_paid,
           "一般單品",
           false,
-          d.event_price
+          p.original_price
         );
       });
 
@@ -320,25 +318,17 @@ const fetchExhibitionReport = async () => {
             (s: number, r: any) => s + (r.quantity || 0),
             0
           );
-          const totalWeight = bd.bundle.items.reduce(
-            (s: number, i: any) => s + (i.share_weight || 0),
-            0
-          );
-          const weightRatio =
-            totalWeight > 0 ? share.share_weight / totalWeight : 0;
-          // 組合包的「預估單價」顯示拆分後的價格
-          const bundle_rev_share = bd.event_price * weightRatio;
           processItem(
             bd.booth.exhibition,
             bd.booth,
             p.name,
             qty,
-            qty * bundle_rev_share,
+            qty * p.original_price,
             bd.id,
             bd.is_paid,
             share.bundle.name,
             true,
-            bundle_rev_share
+            p.original_price
           );
         });
       });
