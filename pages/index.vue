@@ -124,28 +124,50 @@
                 </div>
               </v-card>
             </v-col>
-            <v-col cols="12">
+            <v-col cols="12" sm="6">
               <v-card
-                class="rounded-xl pa-6 d-flex align-center border cursor-pointer"
+                class="rounded-xl pa-6 d-flex flex-column justify-space-between border cursor-pointer"
                 hover
                 @click="router.push('/sales-report')"
               >
-                <v-avatar
-                  class="rounded-xl mr-6"
-                  color="blue-lighten-5"
-                  size="72"
-                >
-                  <v-icon color="primary" size="36">mdi-finance</v-icon>
-                </v-avatar>
-                <div class="flex-grow-1">
-                  <div class="text-title-medium font-weight-bold mb-1">
-                    銷售紀錄查詢
+                <div class="d-flex justify-space-between">
+                  <v-avatar class="rounded-lg" color="blue-lighten-5" size="48">
+                    <v-icon color="primary">mdi-receipt-text-outline</v-icon>
+                  </v-avatar>
+                  <v-icon color="grey-lighten-1">mdi-open-in-new</v-icon>
+                </div>
+                <div>
+                  <div class="text-title-medium font-weight-bold my-3">
+                    攤位銷售紀錄
+                  </div>
+                  <div class="text-grey">查看各攤位訂單明細與展覽總收入。</div>
+                </div>
+              </v-card>
+            </v-col>
+            <v-col cols="12" sm="6">
+              <v-card
+                class="rounded-xl pa-6 d-flex flex-column justify-space-between border cursor-pointer"
+                hover
+                @click="router.push('/settlement-report')"
+              >
+                <div class="d-flex justify-space-between">
+                  <v-avatar
+                    class="rounded-lg"
+                    color="green-lighten-5"
+                    size="48"
+                  >
+                    <v-icon color="primary">mdi-cash-multiple</v-icon>
+                  </v-avatar>
+                  <v-icon color="grey-lighten-1">mdi-open-in-new</v-icon>
+                </div>
+                <div>
+                  <div class="text-title-medium font-weight-bold my-3">
+                    賣家拆賬
                   </div>
                   <div class="text-grey">
-                    調閱過往交易明細、發票紀錄與退貨處理程序。
+                    依原價計算各賣家應得金額並標記付款狀態。
                   </div>
                 </div>
-                <v-icon color="primary">mdi-chevron-right</v-icon>
               </v-card>
             </v-col>
           </v-row>

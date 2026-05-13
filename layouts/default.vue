@@ -83,10 +83,16 @@ const ownerItems = [
     icon: "mdi-package-variant-closed",
   },
   {
-    title: "銷售紀錄查詢",
-    subtitle: "查看各場展覽的營收與明細",
+    title: "攤位銷售紀錄",
+    subtitle: "查看各場展覽的訂單明細與總收入",
     route: "/sales-report",
-    icon: "mdi-finance",
+    icon: "mdi-receipt-text-outline",
+  },
+  {
+    title: "賣家拆賬",
+    subtitle: "依原價計算各賣家應得金額",
+    route: "/settlement-report",
+    icon: "mdi-cash-multiple",
   },
   {
     title: "現場 POS 結帳系統",
