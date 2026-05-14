@@ -56,9 +56,20 @@
                 {{ booth.order_count }} 筆訂單
               </v-chip>
             </div>
-            <span class="text-h6 font-weight-bold"
-              >總收入: ${{ booth.total_revenue }}</span
-            >
+            <div class="d-flex align-center gap-3">
+              <v-btn
+                size="x-small"
+                variant="outlined"
+                color="white"
+                prepend-icon="mdi-download"
+                @click.stop="exportBooth(booth)"
+              >
+                匯出
+              </v-btn>
+              <span class="text-h6 font-weight-bold ml-2"
+                >總收入: ${{ booth.total_revenue }}</span
+              >
+            </div>
           </div>
         </v-expansion-panel-title>
 
@@ -594,5 +605,80 @@ const resetManualForm = () => {
 watch(addDialog, (val) => {
   if (!val) resetManualForm();
 });
+
+const exportBooth = (booth: any) => {
+  const csvCell = (val: any) => {
+    const str = String(val ?? "");
+    return str.includes(",") || str.includes('"') || str.includes("\n")
+      ? `"${str.replace(/"/g, '""')}"`
+      : str;
+  };
+
+  const rows: string[] = [];
+
+  // 攤位摘要列
+  rows.push([
+    "展覽名稱", "攤位編號", "訂單總數", "總收入"
+  ].map(csvCell).join(","));
+  rows.push([
+    booth.exhibition_name,
+    booth.booth_number,
+    booth.order_count,
+    booth.total_revenue,
+  ].map(csvCell).join(","));
+
+  rows.push(""); // 空行分隔
+
+  // 訂單明細標頭
+  rows.push([
+    "訂單編號", "交易時間", "支付方式", "電話末三碼",
+    "品項名稱", "類型", "數量", "單價", "小計", "訂單總金額"
+  ].map(csvCell).join(","));
+
+  for (const order of booth.orders) {
+    const dateStr = order.created_at
+      ? new Date(order.created_at).toLocaleString("zh-TW", {
+          year: "numeric", month: "2-digit", day: "2-digit",
+          hour: "2-digit", minute: "2-digit",
+        })
+      : "";
+
+    if (order.lines.length === 0) {
+      rows.push([
+        order.order_number, dateStr, order.method, order.phone,
+        "", "", "", "", "", order.total,
+      ].map(csvCell).join(","));
+    } else {
+      order.lines.forEach((line: any, idx: number) => {
+        rows.push([
+          idx === 0 ? order.order_number : "",
+          idx === 0 ? dateStr : "",
+          idx === 0 ? order.method : "",
+          idx === 0 ? order.phone : "",
+          line.name,
+          line.is_bundle ? "組合包" : "單品",
+          line.quantity,
+          line.unit_price,
+          line.subtotal,
+          idx === 0 ? order.total : "",
+        ].map(csvCell).join(","));
+      });
+    }
+  }
+
+  rows.push(""); // 空行分隔
+  rows.push(["", "", "", "", "", "", "", "", "總計", booth.total_revenue].map(csvCell).join(","));
+
+  // 加 BOM 讓 Excel 正確顯示中文
+  const bom = "\uFEFF";
+  const blob = new Blob([bom + rows.join("\n")], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `銷售紀錄_${booth.exhibition_name}_攤位${booth.booth_number}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+};
+
 onMounted(fetchSalesReport);
 </script>
