@@ -72,7 +72,6 @@ export const usePosSystem = () => {
           bundle:bundle_id (
             id, name,
             items:Bundle_Items (
-              share_weight,
               product:product_id ( id, name, total_inventory )
             )
           )

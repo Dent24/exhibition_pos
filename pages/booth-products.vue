@@ -362,42 +362,6 @@
             ></v-text-field>
           </div>
 
-          <div
-            v-if="isBundleMode && bundleForm.selectedProducts.length > 0"
-            class="mt-4"
-          >
-            <label
-              class="text-subtitle-2 font-weight-bold text-grey-darken-2 d-block mb-2"
-            >
-              拆帳權重設定 (預設按原價比例)
-            </label>
-            <v-list
-              density="compact"
-              bg-color="grey-lighten-5"
-              class="rounded-lg"
-            >
-              <v-list-item
-                v-for="pid in bundleForm.selectedProducts"
-                :key="pid"
-              >
-                <v-row align="center" no-gutters>
-                  <v-col cols="6" class="text-caption">
-                    {{ rawAuthorizedProducts.find((p) => p.id === pid)?.name }}
-                  </v-col>
-                  <v-col cols="6">
-                    <v-text-field
-                      v-model.number="bundleForm.weights[pid]"
-                      type="number"
-                      density="compact"
-                      hide-details
-                      variant="outlined"
-                      prefix="W"
-                    ></v-text-field>
-                  </v-col>
-                </v-row>
-              </v-list-item>
-            </v-list>
-          </div>
         </v-card-text>
 
         <v-card-actions class="px-8 py-6 bg-grey-lighten-5">
@@ -451,7 +415,6 @@ const eventPriceForm = ref({ product_id: null as number | null, price: 0 });
 const bundleForm = ref({
   name: "",
   selectedProducts: [] as number[],
-  weights: {} as Record<number, number>,
 });
 
 // --- 修正後的邏輯函式 ---
@@ -502,7 +465,6 @@ const fetchAllData = async () => {
         bundle:bundle_id ( 
           id, name, 
           items:Bundle_Items ( 
-            share_weight, 
             product:product_id ( id, name, original_price, total_inventory ) 
           ) 
         )
@@ -560,19 +522,10 @@ const openEditDialog = (boothId: number, item: any) => {
     isBundleMode.value = true;
     bundleForm.value.name = item.bundle.name;
 
-    // 關鍵：從資料庫回傳的 bundle.items 中提取商品 ID 與對應的權重
-    const selectedPids: number[] = [];
-    const weights: Record<number, number> = {};
-
-    item.bundle.items.forEach((i: any) => {
-      const pid = i.product.id;
-      selectedPids.push(pid);
-      // 帶入該商品在該組合包中設定的權重
-      weights[pid] = i.share_weight || i.product.original_price;
-    });
+    // 關鍵：從資料庫回傳的 bundle.items 中提取商品 ID
+    const selectedPids: number[] = item.bundle.items.map((i: any) => i.product.id);
 
     bundleForm.value.selectedProducts = selectedPids;
-    bundleForm.value.weights = weights;
   } else {
     isBundleMode.value = false;
     eventPriceForm.value.product_id = item.product.id;
@@ -611,20 +564,6 @@ const saveItem = async () => {
           .update({ name: bundleForm.value.name })
           .eq("id", finalBundleId);
         if (nameErr) throw nameErr;
-
-        // 更新權重 (Bundle_Items)
-        const updatePromises = bundleForm.value.selectedProducts.map((pid) => {
-          const weight = bundleForm.value.weights[pid];
-          return supabase
-            .from("Bundle_Items")
-            .update({ share_weight: weight })
-            .eq("bundle_id", finalBundleId)
-            .eq("product_id", Number(pid));
-        });
-
-        const results = await Promise.all(updatePromises);
-        const firstError = results.find((r) => r.error)?.error;
-        if (firstError) throw firstError;
       } else {
         // --- 2. 新增組合包模式 ---
         const { data: bData, error: bErr } = await supabase
@@ -642,7 +581,6 @@ const saveItem = async () => {
         const items = bundleForm.value.selectedProducts.map((pid) => ({
           bundle_id: finalBundleId,
           product_id: Number(pid),
-          share_weight: bundleForm.value.weights[pid] || 0,
         }));
         const { error: iErr } = await supabase
           .from("Bundle_Items")
@@ -765,38 +703,6 @@ const removeProduct = async (detailId: number) => {
     loading.value = false;
   }
 };
-
-watch(
-  () => bundleForm.value.selectedProducts,
-  (newPids) => {
-    // 如果 newPids 為空，清空 weights 並結束
-    if (!newPids || newPids.length === 0) {
-      bundleForm.value.weights = {};
-      return;
-    }
-
-    const newWeights: Record<number, number> = { ...bundleForm.value.weights };
-
-    newPids.forEach((pid) => {
-      // 只有在權重尚未設定時才自動填入原價
-      if (newWeights[pid] === undefined) {
-        const product = rawAuthorizedProducts.value.find((p) => p.id === pid);
-        newWeights[pid] = product?.original_price || 1;
-      }
-    });
-
-    // 移除已經不在選擇清單中的權重（保持資料整潔）
-    Object.keys(newWeights).forEach((key) => {
-      if (!newPids.includes(Number(key))) {
-        delete newWeights[Number(key)];
-      }
-    });
-
-    // 重新賦值以確保響應式
-    bundleForm.value.weights = newWeights;
-  },
-  { deep: true }
-);
 
 onMounted(() => {
   fetchAllData();
