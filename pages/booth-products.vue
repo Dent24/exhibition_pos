@@ -94,6 +94,7 @@
           <v-data-table
             :headers="headers"
             :items="booth.details"
+            :items-per-page="-1"
             density="comfortable"
             class="elevation-0"
             hide-default-footer
