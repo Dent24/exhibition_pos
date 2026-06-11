@@ -444,7 +444,7 @@ const fetchSalesReport = async () => {
       .from("Exhibition_Booths")
       .select(
         `
-        id, booth_number,
+        id, booth_number, name,
         exhibitions:exhibition_id ( name ),
         orders:Orders (
           id, order_number, order_token, method, phone, created_at,
@@ -463,7 +463,7 @@ const fetchSalesReport = async () => {
 
     if (error) throw error;
 
-    boothsData.value = (data || []).map((booth) => {
+    boothsData.value = (data || []).map((booth: any) => {
       const orders = (booth.orders || [])
         .map((order: any) => {
           const lines = (order.records || []).map((rec: any) => ({
@@ -498,7 +498,7 @@ const fetchSalesReport = async () => {
       return {
         id: booth.id,
         booth_number: booth.booth_number,
-        exhibition_name: booth.exhibitions.name,
+        exhibition_name: booth.exhibitions?.name ?? booth.name ?? "通販",
         orders,
         order_count: orders.length,
         total_revenue: orders.reduce((s: number, o: any) => s + o.total, 0),

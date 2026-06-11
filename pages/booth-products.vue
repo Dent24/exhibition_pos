@@ -21,8 +21,17 @@
           <v-row no-gutters align="center">
             <v-col cols="8">
               <span class="font-weight-bold text-primary">{{
-                booth.exhibitions.name
+                booth.exhibitions?.name ?? booth.name
               }}</span>
+              <v-chip
+                v-if="!booth.exhibitions"
+                size="small"
+                class="ml-2"
+                color="deep-purple"
+                variant="flat"
+              >
+                通販
+              </v-chip>
               <v-chip size="small" class="ml-2" variant="outlined">
                 攤位：{{ booth.booth_number || "未定" }}
               </v-chip>
@@ -37,21 +46,21 @@
             <v-col cols="4" class="text-right pr-4">
               <v-chip
                 :color="
-                  getStatus(booth.exhibitions.start_date) === 'locked'
+                  getStatus(booth.exhibitions?.start_date) === 'locked'
                     ? 'error'
                     : 'success'
                 "
                 size="small"
               >
                 {{
-                  getStatus(booth.exhibitions.start_date) === "locked"
+                  getStatus(booth.exhibitions?.start_date) === "locked"
                     ? "已開始 (鎖定)"
                     : "準備中 (可編輯)"
                 }}
               </v-chip>
 
               <v-menu
-                v-if="getStatus(booth.exhibitions.start_date) === 'editable'"
+                v-if="getStatus(booth.exhibitions?.start_date) === 'editable'"
               >
                 <template v-slot:activator="{ props }">
                   <v-btn
@@ -224,7 +233,7 @@
               <div
                 v-else-if="
                   getStatus(
-                    getBoothByDetailId(item.id)?.exhibitions.start_date
+                    getBoothByDetailId(item.id)?.exhibitions?.start_date
                   ) === 'editable'
                 "
                 class="d-flex justify-end"
@@ -442,7 +451,9 @@ const getBoothByDetailId = (detailId: number) => {
   );
 };
 
-const getStatus = (startDate: string) => {
+const getStatus = (startDate?: string | null) => {
+  // 通販攤位無展覽 (無 start_date)，永遠可編輯
+  if (!startDate) return "editable";
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const start = new Date(startDate);
@@ -457,7 +468,7 @@ const fetchAllData = async () => {
       .from("Exhibition_Booths")
       .select(
         `
-      id, booth_number,
+      id, booth_number, name,
       exhibitions:exhibition_id ( id, name, start_date, end_date ),
       details:Exhibition_Product_Details (
         id, event_price, is_paid,

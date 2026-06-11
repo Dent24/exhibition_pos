@@ -7,18 +7,25 @@
         </p>
         <p class="text-grey-darken-1 mb-0">管理展場平面位置與攤主進駐資訊。</p>
       </v-col>
-      <v-col cols="auto">
+      <v-col cols="auto" class="d-flex ga-2">
         <v-btn
           class="font-weight-bold"
           color="primary"
           prepend-icon="mdi-plus"
           size="large"
-          @click="
-            dialog = true;
-            isEdit = false;
-          "
+          @click="openCreate('exhibition')"
         >
           新增參展展覽
+        </v-btn>
+        <v-btn
+          class="font-weight-bold"
+          color="deep-purple"
+          prepend-icon="mdi-truck-delivery-outline"
+          size="large"
+          variant="flat"
+          @click="openCreate('permanent')"
+        >
+          新增通販攤位
         </v-btn>
       </v-col>
     </v-row>
@@ -172,7 +179,13 @@
           class="px-6 py-5 bg-grey-lighten-5 border-b d-flex justify-space-between align-center"
         >
           <div class="font-weight-black text-grey-darken-4">
-            {{ isEdit ? "修改攤位資訊" : "新增參展展覽" }}
+            {{
+              isEdit
+                ? "修改攤位資訊"
+                : isPermanent
+                ? "新增通販攤位"
+                : "新增參展展覽"
+            }}
           </div>
           <v-btn
             icon="mdi-close"
@@ -184,7 +197,8 @@
         </div>
 
         <v-card-text class="pa-8">
-          <div class="mb-6">
+          <!-- 展覽攤位：選擇展覽 -->
+          <div v-if="!isPermanent" class="mb-6">
             <label class="font-weight-bold text-grey-darken-2 d-block mb-2">
               選擇展覽
             </label>
@@ -202,6 +216,25 @@
               :disabled="isEdit"
               :no-data-text="isEdit ? '正在編輯中' : '目前無可選展覽'"
             />
+          </div>
+
+          <!-- 通販攤位：輸入名稱 -->
+          <div v-else class="mb-6">
+            <label class="font-weight-bold text-grey-darken-2 d-block mb-2">
+              通販攤位名稱
+            </label>
+            <v-text-field
+              v-model="form.name"
+              placeholder="例如：常設通販、線上預購"
+              variant="filled"
+              flat
+              hide-details
+              bg-color="grey-lighten-4"
+              rounded="t-lg"
+            ></v-text-field>
+            <p class="text-caption text-deep-purple mt-2 mb-0">
+              通販攤位無展覽期效，商品可隨時上架與修改。
+            </p>
           </div>
 
           <div class="mb-6">
@@ -236,7 +269,7 @@
             class="font-weight-bold px-8 rounded-lg elevation-2"
             height="44"
             variant="flat"
-            :disabled="!form.exhibition_id"
+            :disabled="isPermanent ? !form.name.trim() : !form.exhibition_id"
             :loading="loading"
             @click="saveBooth"
           >
@@ -261,9 +294,11 @@ interface Exhibition {
 
 interface BoothWithExhibition {
   id: number;
-  exhibition_id: number;
+  exhibition_id: number | null;
   booth_number: string;
-  exhibitions: Exhibition; // Supabase Join 回來的資料
+  name: string | null; // 通販攤位自帶名稱
+  booth_type: "exhibition" | "permanent";
+  exhibitions: Exhibition | null; // 通販攤位無展覽，為 null
 }
 
 useHead({
@@ -297,9 +332,14 @@ const currentBoothId = ref<number | null>(null);
 
 // 表單資料
 const form = ref({
+  booth_type: "exhibition" as "exhibition" | "permanent",
   exhibition_id: null as number | null,
   booth_number: "",
+  name: "", // 通販攤位名稱
 });
+
+// 目前 Dialog 是否為通販模式
+const isPermanent = computed(() => form.value.booth_type === "permanent");
 
 // 計算出尚未參加過的展覽清單
 const availableExhibitions = computed(() => {
@@ -384,19 +424,29 @@ const featuredExhibition = computed(() => {
 });
 const exhibitionsTableItems = computed(() => {
   return booths.value.map((item) => {
-    const isEnded = isExhibitionEnded(item.exhibitions.end_date);
+    const isPermanentBooth = !item.exhibitions;
+    // 通販攤位無展覽、無期效，永不鎖定
+    const isEnded = isPermanentBooth
+      ? false
+      : isExhibitionEnded(item.exhibitions!.end_date);
 
     return {
       id: item.id,
-      name: item.exhibitions.name,
-      dateRange: `${formatDate(item.exhibitions.start_date)} ~ ${formatDate(
-        item.exhibitions.end_date
-      )}`,
+      name: isPermanentBooth ? item.name : item.exhibitions!.name,
+      dateRange: isPermanentBooth
+        ? "無期效"
+        : `${formatDate(item.exhibitions!.start_date)} ~ ${formatDate(
+            item.exhibitions!.end_date
+          )}`,
       booth: item.booth_number || "未設定",
-      location: item.exhibitions.location,
-      // 根據是否結束動態給予圖示與顏色
-      color: isEnded ? "grey" : "primary",
-      icon: isEnded ? "mdi-calendar-remove" : "mdi-calendar-star",
+      location: isPermanentBooth ? "—（通販）" : item.exhibitions!.location,
+      // 根據類型/是否結束動態給予圖示與顏色
+      color: isPermanentBooth ? "deep-purple" : isEnded ? "grey" : "primary",
+      icon: isPermanentBooth
+        ? "mdi-truck-delivery-outline"
+        : isEnded
+        ? "mdi-calendar-remove"
+        : "mdi-calendar-star",
       // 保留原始資料供操作使用
       raw: item,
       isEnded: isEnded,
@@ -413,6 +463,8 @@ const fetchMyBooths = async () => {
         id,
         exhibition_id,
         booth_number,
+        name,
+        booth_type,
         exhibitions:exhibition_id ( id, name, start_date, end_date, location )
       `
     );
@@ -434,14 +486,29 @@ const fetchAllExhibitions = async () => {
 
 // 3. 新增或修改儲存
 const saveBooth = async () => {
-  if (!form.value.exhibition_id) return;
+  // 驗證：通販需填名稱；展覽攤位需選展覽
+  if (isPermanent.value) {
+    if (!form.value.name.trim()) return alert("請輸入通販攤位名稱");
+  } else if (!form.value.exhibition_id) {
+    return;
+  }
 
   loading.value = true;
-  const payload = {
-    exhibition_id: form.value.exhibition_id,
-    booth_number: form.value.booth_number,
-    owner_id: userStore.profile?.id,
-  };
+  const payload = isPermanent.value
+    ? {
+        booth_type: "permanent",
+        exhibition_id: null,
+        name: form.value.name.trim(),
+        booth_number: form.value.booth_number,
+        owner_id: userStore.profile?.id,
+      }
+    : {
+        booth_type: "exhibition",
+        exhibition_id: form.value.exhibition_id,
+        name: null,
+        booth_number: form.value.booth_number,
+        owner_id: userStore.profile?.id,
+      };
 
   try {
     if (isEdit.value && currentBoothId.value) {
@@ -500,9 +567,9 @@ const deleteBooth = async (id: number) => {
       }
     }
 
-    // 2. 檢查是否為「進行中」的活動
+    // 2. 檢查是否為「進行中」的活動（通販攤位無展覽，跳過此檢查）
     const targetBooth = booths.value.find((b) => b.id === id);
-    if (targetBooth) {
+    if (targetBooth && targetBooth.exhibitions) {
       const now = new Date();
       const startDate = new Date(targetBooth.exhibitions.start_date);
       const endDate = new Date(targetBooth.exhibitions.end_date);
@@ -544,13 +611,23 @@ const deleteBooth = async (id: number) => {
   }
 };
 
+// 開啟新增視窗（指定類型：展覽攤位 / 通販攤位）
+const openCreate = (type: "exhibition" | "permanent") => {
+  resetForm();
+  form.value.booth_type = type;
+  isEdit.value = false;
+  dialog.value = true;
+};
+
 // 開啟編輯視窗
 const openEdit = (item: BoothWithExhibition) => {
   isEdit.value = true;
   currentBoothId.value = item.id;
   form.value = {
+    booth_type: item.booth_type || (item.exhibition_id ? "exhibition" : "permanent"),
     exhibition_id: item.exhibition_id,
     booth_number: item.booth_number,
+    name: item.name || "",
   };
   dialog.value = true;
 };
@@ -558,7 +635,12 @@ const openEdit = (item: BoothWithExhibition) => {
 const resetForm = () => {
   isEdit.value = false;
   currentBoothId.value = null;
-  form.value = { exhibition_id: null, booth_number: "" };
+  form.value = {
+    booth_type: "exhibition",
+    exhibition_id: null,
+    booth_number: "",
+    name: "",
+  };
 };
 
 const formatDate = (dateStr: string | null) => {

@@ -201,7 +201,7 @@ const fetchSettlementReport = async () => {
       .from("Exhibition_Booths")
       .select(
         `
-        id, booth_number,
+        id, booth_number, name,
         exhibitions:exhibition_id ( name ),
         details:Exhibition_Product_Details (
           id, event_price, is_paid, bundle_id,
@@ -226,7 +226,7 @@ const fetchSettlementReport = async () => {
 
     if (error) throw error;
 
-    boothsReport.value = (data || []).map((booth) => {
+    boothsReport.value = (data || []).map((booth: any) => {
       const sellerMap = new Map<number, any>();
 
       booth.details.forEach((detail: any) => {
@@ -317,7 +317,7 @@ const fetchSettlementReport = async () => {
       return {
         id: booth.id,
         booth_number: booth.booth_number,
-        exhibition_name: booth.exhibitions.name,
+        exhibition_name: booth.exhibitions?.name ?? booth.name ?? "通販",
         sellers,
         total_payout: sellers.reduce((s, sel) => s + sel.seller_total, 0),
       };

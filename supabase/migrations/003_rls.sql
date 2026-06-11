@@ -8,7 +8,8 @@
 -- 正式庫現況忠實還原：
 --   * 除了 Users 之外，所有表都啟用 RLS；Users 維持「停用」。
 --   * Exhibition_Product_Details 的新增/修改/刪除政策含時間鎖：
---       Exhibitions.start_date > CURRENT_DATE 才能編輯 (展覽開始即鎖定)。
+--       展覽攤位需 Exhibitions.start_date > CURRENT_DATE 才能編輯 (開始即鎖定)；
+--       通販攤位 (exhibition_id IS NULL) 不受期效限制，永遠可編輯。
 --   * Orders 對 public 開放 SELECT(true)，配合 SECURITY DEFINER 函式供匿名查單。
 --   * 政策名稱沿用正式庫 (含中文名)。
 -- ============================================================
@@ -170,16 +171,18 @@ DROP POLICY IF EXISTS "Enable read access for all users" ON "Exhibition_Product_
 CREATE POLICY "Enable read access for all users" ON "Exhibition_Product_Details"
   FOR SELECT TO public USING (true);
 
+-- 時間鎖：展覽攤位「開始前才可編輯」；通販攤位 (exhibition_id IS NULL) 永遠可編輯。
+-- 用 LEFT JOIN 讓無展覽的攤位仍能比對到攤主。
 DROP POLICY IF EXISTS "Owners can insert products before exhibition starts" ON "Exhibition_Product_Details";
 CREATE POLICY "Owners can insert products before exhibition starts" ON "Exhibition_Product_Details"
   FOR INSERT TO authenticated
   WITH CHECK (EXISTS (
     SELECT 1
-      FROM "Exhibition_Booths"
-      JOIN "Exhibitions" ON "Exhibitions".id = "Exhibition_Booths".exhibition_id
-     WHERE "Exhibition_Booths".id = "Exhibition_Product_Details".booth_id
-       AND "Exhibition_Booths".owner_id = (SELECT "Users".id FROM "Users" WHERE "Users"."Uid" = auth.uid())
-       AND "Exhibitions".start_date > CURRENT_DATE
+      FROM "Exhibition_Booths" b
+      LEFT JOIN "Exhibitions" e ON e.id = b.exhibition_id
+     WHERE b.id = "Exhibition_Product_Details".booth_id
+       AND b.owner_id = (SELECT "Users".id FROM "Users" WHERE "Users"."Uid" = auth.uid())
+       AND (b.exhibition_id IS NULL OR e.start_date > CURRENT_DATE)
   ));
 
 DROP POLICY IF EXISTS "Owners can update product details before exhibition starts" ON "Exhibition_Product_Details";
@@ -187,16 +190,16 @@ CREATE POLICY "Owners can update product details before exhibition starts" ON "E
   FOR UPDATE TO authenticated
   USING (EXISTS (
     SELECT 1
-      FROM "Exhibition_Booths"
-      JOIN "Exhibitions" ON "Exhibitions".id = "Exhibition_Booths".exhibition_id
-     WHERE "Exhibition_Booths".id = "Exhibition_Product_Details".booth_id
-       AND "Exhibition_Booths".owner_id = (SELECT "Users".id FROM "Users" WHERE "Users"."Uid" = auth.uid())
-       AND "Exhibitions".start_date > CURRENT_DATE
+      FROM "Exhibition_Booths" b
+      LEFT JOIN "Exhibitions" e ON e.id = b.exhibition_id
+     WHERE b.id = "Exhibition_Product_Details".booth_id
+       AND b.owner_id = (SELECT "Users".id FROM "Users" WHERE "Users"."Uid" = auth.uid())
+       AND (b.exhibition_id IS NULL OR e.start_date > CURRENT_DATE)
   ))
   WITH CHECK (EXISTS (
-    SELECT 1 FROM "Exhibition_Booths"
-     WHERE "Exhibition_Booths".id = "Exhibition_Product_Details".booth_id
-       AND "Exhibition_Booths".owner_id = (SELECT "Users".id FROM "Users" WHERE "Users"."Uid" = auth.uid())
+    SELECT 1 FROM "Exhibition_Booths" b
+     WHERE b.id = "Exhibition_Product_Details".booth_id
+       AND b.owner_id = (SELECT "Users".id FROM "Users" WHERE "Users"."Uid" = auth.uid())
   ));
 
 DROP POLICY IF EXISTS "Owners can delete products before exhibition starts" ON "Exhibition_Product_Details";
@@ -204,11 +207,11 @@ CREATE POLICY "Owners can delete products before exhibition starts" ON "Exhibiti
   FOR DELETE TO authenticated
   USING (EXISTS (
     SELECT 1
-      FROM "Exhibition_Booths"
-      JOIN "Exhibitions" ON "Exhibitions".id = "Exhibition_Booths".exhibition_id
-     WHERE "Exhibition_Booths".id = "Exhibition_Product_Details".booth_id
-       AND "Exhibition_Booths".owner_id = (SELECT "Users".id FROM "Users" WHERE "Users"."Uid" = auth.uid())
-       AND "Exhibitions".start_date > CURRENT_DATE
+      FROM "Exhibition_Booths" b
+      LEFT JOIN "Exhibitions" e ON e.id = b.exhibition_id
+     WHERE b.id = "Exhibition_Product_Details".booth_id
+       AND b.owner_id = (SELECT "Users".id FROM "Users" WHERE "Users"."Uid" = auth.uid())
+       AND (b.exhibition_id IS NULL OR e.start_date > CURRENT_DATE)
   ));
 
 -- ============================================================

@@ -299,7 +299,8 @@ const fetchExhibitionReport = async () => {
           0
         );
         processItem(
-          d.booth.exhibition,
+          // 通販攤位無展覽，歸入「通販」群組
+          d.booth.exhibition ?? { id: 0, name: "通販" },
           d.booth,
           p.name,
           qty,
@@ -319,7 +320,8 @@ const fetchExhibitionReport = async () => {
             0
           );
           processItem(
-            bd.booth.exhibition,
+            // 通販攤位無展覽，歸入「通販」群組
+            bd.booth.exhibition ?? { id: 0, name: "通販" },
             bd.booth,
             p.name,
             qty,

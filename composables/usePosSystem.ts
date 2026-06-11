@@ -99,14 +99,17 @@ export const usePosSystem = () => {
 
     const { data, error } = await supabase
       .from('Exhibition_Booths')
-      .select('id, booth_number, exhibitions:exhibition_id (name)')
+      .select('id, booth_number, name, booth_type, exhibitions:exhibition_id (name)')
       .eq('owner_id', userStore.profile.id);
 
     if (!error) {
       booths.value =
         data?.map((b) => ({
           id: b.id,
-          exhibition_name: `${b.exhibitions.name} (${b.booth_number})`,
+          // 通販攤位無展覽，改用攤位自帶名稱顯示
+          exhibition_name: b.exhibitions
+            ? `${b.exhibitions.name} (${b.booth_number})`
+            : `${b.name}（通販）`,
         })) || [];
     }
   };
