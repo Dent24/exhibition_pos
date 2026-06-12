@@ -11,9 +11,16 @@
         width="100"
         class="mr-4"
       />
-      <span v-else-if="mainStore.profile" class="mr-4">
+      <v-btn
+        v-else-if="mainStore.profile"
+        class="mr-4"
+        variant="text"
+        prepend-icon="mdi-account-circle"
+        :active="route.fullPath === '/profile'"
+        @click="router.push('/profile')"
+      >
         你好，{{ mainStore.profile.nickname }}
-      </span>
+      </v-btn>
       <v-btn class="mr-4" variant="outlined" @click="handleLogout">登出</v-btn>
     </v-app-bar>
 

@@ -6,7 +6,8 @@
 -- ⚠️ 用途：在「全新空白資料庫」重建。請勿對既有正式庫執行 (會疊加重複政策)。
 --
 -- 正式庫現況忠實還原：
---   * 除了 Users 之外，所有表都啟用 RLS；Users 維持「停用」。
+--   * 所有表 (含 Users) 皆啟用 RLS。Users 開放 public SELECT/INSERT (未登入可檢查與新增)、
+--     UPDATE 限本人 (會員頁編輯)，無 DELETE 政策。
 --   * Exhibition_Product_Details 的新增/修改/刪除政策含時間鎖：
 --       展覽攤位需 Exhibitions.start_date > CURRENT_DATE 才能編輯 (開始即鎖定)；
 --       通販攤位 (exhibition_id IS NULL) 不受期效限制，永遠可編輯。
@@ -14,7 +15,8 @@
 --   * 政策名稱沿用正式庫 (含中文名)。
 -- ============================================================
 
--- 啟用 RLS（Users 維持停用，與正式庫一致）-------------------
+-- 啟用 RLS -------------------------------------------------
+ALTER TABLE "Users"                      ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "Exhibitions"                ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "Products"                   ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "Product_Permissions"        ENABLE ROW LEVEL SECURITY;
@@ -24,7 +26,24 @@ ALTER TABLE "Bundle_Items"               ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "Exhibition_Product_Details" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "Orders"                     ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "Sales_Records"              ENABLE ROW LEVEL SECURITY;
--- 注意：Users 在正式庫 RLS 為停用 (false)，此處不啟用。
+
+-- ============================================================
+-- Users  (未登入 anon 亦可 SELECT / INSERT；UPDATE 限本人；無 DELETE 政策 → 拒絕)
+-- ============================================================
+DROP POLICY IF EXISTS "Enable read access for all users" ON "Users";
+CREATE POLICY "Enable read access for all users" ON "Users"
+  FOR SELECT TO public USING (true);
+
+DROP POLICY IF EXISTS "Enable insert for all users" ON "Users";
+CREATE POLICY "Enable insert for all users" ON "Users"
+  FOR INSERT TO public WITH CHECK (true);
+
+-- 會員頁編輯：僅限登入者更新自己那筆 (暱稱 / 攤主 / 賣家)
+DROP POLICY IF EXISTS "Users can update their own profile" ON "Users";
+CREATE POLICY "Users can update their own profile" ON "Users"
+  FOR UPDATE TO authenticated
+  USING ("Uid" = auth.uid())
+  WITH CHECK ("Uid" = auth.uid());
 
 -- ============================================================
 -- Exhibitions
