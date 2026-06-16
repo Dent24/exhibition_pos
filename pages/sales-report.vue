@@ -1,18 +1,22 @@
 <template>
   <v-container>
-    <v-row align="end" class="mb-10">
-      <v-col>
-        <p class="text-display-medium font-weight-black text-black mb-2">
+    <v-row align="end" class="mb-6 mb-md-10">
+      <v-col cols="12" sm="">
+        <p
+          class="font-weight-black text-black mb-2"
+          :class="mobile ? 'text-h5' : 'text-display-medium'"
+        >
           攤位銷售紀錄
         </p>
         <p class="text-grey-darken-1 mb-0">
           查看各攤位總收入及每筆訂單明細，以展覽售價為計算基準。
         </p>
       </v-col>
-      <v-col class="text-right">
+      <v-col cols="12" sm="auto" class="text-right">
         <v-btn
           color="primary"
           prepend-icon="mdi-cart-plus"
+          :block="mobile"
           @click="addDialog = true"
         >
           手動新增銷量
@@ -34,7 +38,40 @@
         :key="booth.id"
         class="mb-4"
       >
-        <v-expansion-panel-title class="bg-primary text-white">
+        <!-- 手機版標題 -->
+        <v-expansion-panel-title v-if="mobile" class="bg-primary text-white">
+          <div class="w-100 pr-2">
+            <div class="d-flex justify-space-between align-center mb-2">
+              <span class="font-weight-bold text-truncate">
+                <v-icon icon="mdi-storefront" size="18" class="mr-1"></v-icon>
+                {{ booth.exhibition_name }}
+              </span>
+              <span class="font-weight-bold flex-shrink-0 ml-2"
+                >${{ booth.total_revenue }}</span
+              >
+            </div>
+            <div class="d-flex align-center ga-2 flex-wrap">
+              <v-chip size="x-small" color="white" variant="outlined">
+                攤位: {{ booth.booth_number }}
+              </v-chip>
+              <v-chip size="x-small" color="white" variant="outlined">
+                {{ booth.order_count }} 筆
+              </v-chip>
+              <v-btn
+                size="x-small"
+                variant="outlined"
+                color="white"
+                prepend-icon="mdi-download"
+                @click.stop="exportBooth(booth)"
+              >
+                匯出
+              </v-btn>
+            </div>
+          </div>
+        </v-expansion-panel-title>
+
+        <!-- 桌機版標題 -->
+        <v-expansion-panel-title v-else class="bg-primary text-white">
           <div class="d-flex justify-space-between w-100 align-center pr-4">
             <div>
               <v-icon icon="mdi-storefront" class="mr-2"></v-icon>
@@ -83,6 +120,102 @@
             此攤位尚無銷售紀錄。
           </v-alert>
 
+          <!-- 手機版：訂單卡片 -->
+          <div v-else-if="mobile" class="pa-3">
+            <v-card
+              v-for="order in booth.orders"
+              :key="order.id"
+              border
+              elevation="0"
+              class="mb-3 pa-3 rounded-lg bg-white"
+            >
+              <div class="d-flex justify-space-between align-start">
+                <div style="min-width: 0">
+                  <div class="font-weight-bold text-truncate">
+                    {{ order.order_number }}
+                  </div>
+                  <div class="text-caption text-grey">
+                    {{ formatDate(order.created_at) }}
+                  </div>
+                </div>
+                <div class="text-right flex-shrink-0 ml-2">
+                  <div class="font-weight-black text-primary text-h6">
+                    ${{ order.total }}
+                  </div>
+                  <v-chip
+                    :color="order.method?.includes('Line') ? 'green' : 'blue'"
+                    size="x-small"
+                    variant="flat"
+                  >
+                    {{ order.method }}
+                  </v-chip>
+                </div>
+              </div>
+
+              <v-divider class="my-2"></v-divider>
+
+              <div
+                v-for="line in order.lines"
+                :key="line.id"
+                class="d-flex justify-space-between align-center text-body-2 mb-1"
+              >
+                <span class="text-truncate mr-2">
+                  <v-icon
+                    :color="line.is_bundle ? 'purple' : 'grey'"
+                    size="14"
+                    class="mr-1"
+                  >
+                    {{
+                      line.is_bundle
+                        ? "mdi-package-variant"
+                        : "mdi-tag-outline"
+                    }}
+                  </v-icon>
+                  {{ line.name }} x{{ line.quantity }}
+                </span>
+                <span class="font-weight-bold flex-shrink-0"
+                  >${{ line.subtotal }}</span
+                >
+              </div>
+
+              <v-divider class="my-2"></v-divider>
+
+              <div class="d-flex align-center justify-space-between">
+                <span class="text-caption text-grey"
+                  >電話 {{ order.phone }}</span
+                >
+                <div>
+                  <v-btn
+                    icon="mdi-open-in-new"
+                    variant="text"
+                    color="primary"
+                    size="small"
+                    :href="`/exhibition_pos/order/${order.token}`"
+                    target="_blank"
+                    :disabled="!order.token"
+                  ></v-btn>
+                  <v-btn
+                    v-if="order.canDelete"
+                    icon="mdi-delete-outline"
+                    variant="text"
+                    color="error"
+                    size="small"
+                    @click="deleteOrder(order, booth.id)"
+                  ></v-btn>
+                  <v-btn
+                    v-else
+                    icon="mdi-lock-outline"
+                    variant="text"
+                    color="grey-lighten-1"
+                    size="small"
+                    disabled
+                  ></v-btn>
+                </div>
+              </div>
+            </v-card>
+          </div>
+
+          <!-- 桌機版：表格 -->
           <div v-else class="pa-4">
             <v-data-table
               :headers="orderHeaders"
@@ -232,7 +365,7 @@
           <v-divider class="my-4"></v-divider>
 
           <v-row v-if="selectedBoothId" align="center">
-            <v-col cols="7">
+            <v-col cols="12" sm="7">
               <v-select
                 v-model="tempItem.detail"
                 label="選擇商品 / 組合包"
@@ -264,7 +397,7 @@
                 </template>
               </v-select>
             </v-col>
-            <v-col cols="3">
+            <v-col cols="8" sm="3">
               <v-text-field
                 v-model.number="tempItem.quantity"
                 type="number"
@@ -275,10 +408,11 @@
                 hide-details
               ></v-text-field>
             </v-col>
-            <v-col cols="2">
+            <v-col cols="4" sm="2">
               <v-btn
                 color="primary"
                 icon="mdi-plus"
+                :block="mobile"
                 @click="addToManualCart"
                 :disabled="!tempItem.detail"
               ></v-btn>
@@ -389,8 +523,11 @@
 </template>
 
 <script setup lang="ts">
+import { useDisplay } from "vuetify";
+
 const supabase = useSupabaseClient();
 const userStore = useMainStore();
+const { smAndDown: mobile } = useDisplay();
 
 useHead({ title: "攤位銷售紀錄" });
 

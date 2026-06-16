@@ -1,6 +1,10 @@
 <template>
   <v-layout>
     <v-app-bar color="primary" elevation="2">
+      <v-app-bar-nav-icon
+        v-if="mobile"
+        @click="drawer = !drawer"
+      ></v-app-bar-nav-icon>
       <v-app-bar-title class="cursor-pointer" @click="router.push('/')">
         展場POS系統
       </v-app-bar-title>
@@ -8,9 +12,17 @@
       <v-skeleton-loader
         v-if="mainStore.loading"
         type="text"
-        width="100"
-        class="mr-4"
+        :width="mobile ? 40 : 100"
+        class="mr-2 mr-sm-4"
       />
+      <!-- 手機版：暱稱只用頭像圖示 -->
+      <v-btn
+        v-else-if="mainStore.profile && mobile"
+        icon="mdi-account-circle"
+        variant="text"
+        :active="route.fullPath === '/profile'"
+        @click="router.push('/profile')"
+      ></v-btn>
       <v-btn
         v-else-if="mainStore.profile"
         class="mr-4"
@@ -21,10 +33,26 @@
       >
         你好，{{ mainStore.profile.nickname }}
       </v-btn>
-      <v-btn class="mr-4" variant="outlined" @click="handleLogout">登出</v-btn>
+      <!-- 手機版：登出只用圖示 -->
+      <v-btn
+        v-if="mobile"
+        icon="mdi-logout"
+        variant="text"
+        @click="handleLogout"
+      ></v-btn>
+      <v-btn v-else class="mr-4" variant="outlined" @click="handleLogout"
+        >登出</v-btn
+      >
     </v-app-bar>
 
-    <v-navigation-drawer class="elevation-3" color="white" width="280">
+    <v-navigation-drawer
+      v-model="drawer"
+      class="elevation-3"
+      color="white"
+      width="280"
+      :permanent="!mobile"
+      :temporary="mobile"
+    >
       <v-list v-model:opened="open">
         <v-list-group value="Owner" v-if="mainStore.profile?.is_owner">
           <template v-slot:activator="{ props }">
@@ -70,11 +98,19 @@
 </template>
 
 <script setup lang="ts">
+import { useDisplay } from "vuetify";
+
 const mainStore = useMainStore();
 const supabase = useSupabaseClient();
 const user = useSupabaseUser();
 const router = useRouter();
 const route = useRoute();
+
+// 手機版判斷（< 960px 視為行動裝置）
+const { smAndDown: mobile } = useDisplay();
+
+// 抽屜開關：桌機預設開啟、手機預設收合
+const drawer = ref(!mobile.value);
 
 const ownerItems = [
   {
@@ -150,8 +186,15 @@ watch(
     if (val === "/") {
       open.value = ["Owner", "Seller"];
     }
+    // 手機版切換頁面後自動收合抽屜
+    if (mobile.value) drawer.value = false;
   }
 );
+
+// 視窗尺寸跨越斷點時，同步抽屜預設狀態
+watch(mobile, (isMobile) => {
+  drawer.value = !isMobile;
+});
 
 watch(
   user,

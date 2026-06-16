@@ -1,8 +1,11 @@
 <template>
   <v-container>
-    <v-row align="end" class="mb-10">
+    <v-row align="end" class="mb-6 mb-md-10">
       <v-col>
-        <p class="text-display-medium font-weight-black text-black mb-2">
+        <p
+          class="font-weight-black text-black mb-2"
+          :class="mobile ? 'text-h5' : 'text-display-medium'"
+        >
           賣家拆賬
         </p>
         <p class="text-grey-darken-1 mb-0">
@@ -25,7 +28,28 @@
         :key="booth.id"
         class="mb-4"
       >
-        <v-expansion-panel-title class="bg-primary text-white">
+        <!-- 手機版標題 -->
+        <v-expansion-panel-title v-if="mobile" class="bg-primary text-white">
+          <div class="w-100 pr-2">
+            <div class="d-flex justify-space-between align-center mb-1">
+              <span class="font-weight-bold text-truncate">
+                <v-icon icon="mdi-storefront" size="18" class="mr-1"></v-icon>
+                {{ booth.exhibition_name }}
+              </span>
+            </div>
+            <div class="d-flex justify-space-between align-center">
+              <v-chip size="x-small" color="white" variant="outlined">
+                攤位: {{ booth.booth_number }}
+              </v-chip>
+              <span class="font-weight-bold"
+                >總應付: ${{ booth.total_payout }}</span
+              >
+            </div>
+          </div>
+        </v-expansion-panel-title>
+
+        <!-- 桌機版標題 -->
+        <v-expansion-panel-title v-else class="bg-primary text-white">
           <div class="d-flex justify-space-between w-100 align-center pr-4">
             <div>
               <v-icon icon="mdi-storefront" class="mr-2"></v-icon>
@@ -59,7 +83,8 @@
             v-for="seller in booth.sellers"
             :key="seller.id"
             variant="outlined"
-            class="ma-4 border-primary bg-white"
+            class="border-primary bg-white"
+            :class="mobile ? 'ma-2' : 'ma-4'"
           >
             <v-toolbar density="compact" color="blue-lighten-5">
               <v-icon
@@ -67,16 +92,101 @@
                 class="ml-4 mr-2"
                 color="primary"
               ></v-icon>
-              <span class="font-weight-bold text-primary"
-                >賣家：{{ seller.nickname }}</span
+              <span class="font-weight-bold text-primary text-truncate"
+                >{{ mobile ? seller.nickname : `賣家：${seller.nickname}` }}</span
               >
               <v-spacer></v-spacer>
-              <span class="mr-4 text-subtitle-1 text-primary">
-                應付小計：<b class="text-h6">${{ seller.seller_total }}</b>
+              <span class="mr-4 text-primary flex-shrink-0">
+                <span v-if="!mobile">應付小計：</span
+                ><b class="text-subtitle-1">${{ seller.seller_total }}</b>
               </span>
             </v-toolbar>
 
+            <!-- 手機版：項目卡片 -->
+            <div v-if="mobile" class="pa-2">
+              <v-card
+                v-for="item in seller.products"
+                :key="item.rowKey"
+                border
+                elevation="0"
+                class="mb-2 pa-3 rounded-lg"
+              >
+                <div class="d-flex align-center">
+                  <v-icon
+                    :color="item.type === 'bundle_split' ? 'purple' : 'grey'"
+                    size="small"
+                    class="mr-2"
+                  >
+                    {{
+                      item.type === "bundle_split"
+                        ? "mdi-package-variant"
+                        : "mdi-tag-outline"
+                    }}
+                  </v-icon>
+                  <div class="flex-grow-1" style="min-width: 0">
+                    <div class="font-weight-bold text-truncate">
+                      {{ item.display_name }}
+                    </div>
+                    <div
+                      v-if="item.sub_items_text"
+                      class="text-caption text-grey-darken-1"
+                    >
+                      內含：{{ item.sub_items_text }}
+                    </div>
+                  </div>
+                  <v-chip
+                    v-if="item.is_paid"
+                    color="success"
+                    size="x-small"
+                    variant="flat"
+                    prepend-icon="mdi-check-circle"
+                    class="flex-shrink-0"
+                  >
+                    已付款
+                  </v-chip>
+                  <v-chip
+                    v-else
+                    color="orange"
+                    size="x-small"
+                    variant="outlined"
+                    class="flex-shrink-0"
+                  >
+                    待結算
+                  </v-chip>
+                </div>
+
+                <v-divider class="my-2"></v-divider>
+
+                <div class="d-flex align-center justify-space-between">
+                  <span class="text-caption text-grey-darken-1">
+                    原價/件 ${{ item.unit_price }} × {{ item.total_qty }}
+                  </span>
+                  <span
+                    class="font-weight-black"
+                    :class="item.is_paid ? 'text-success' : 'text-primary'"
+                  >
+                    ${{ item.subtotal }}
+                  </span>
+                </div>
+
+                <div v-if="!item.is_paid" class="mt-2 text-right">
+                  <v-btn
+                    size="small"
+                    color="success"
+                    variant="tonal"
+                    prepend-icon="mdi-cash-check"
+                    :loading="markingPaid === item.detail_id"
+                    @click="markAsPaid(item.detail_id, booth.id, seller.id)"
+                  >
+                    標記已付
+                  </v-btn>
+                </div>
+              </v-card>
+            </div>
+
+            <!-- 桌機版：表格 -->
             <v-data-table
+              v-else
               :headers="headers"
               :items="seller.products"
               item-value="rowKey"
@@ -167,8 +277,11 @@
 </template>
 
 <script setup lang="ts">
+import { useDisplay } from "vuetify";
+
 const supabase = useSupabaseClient();
 const userStore = useMainStore();
+const { smAndDown: mobile } = useDisplay();
 
 useHead({ title: "賣家拆賬" });
 

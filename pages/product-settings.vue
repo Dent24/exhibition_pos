@@ -1,18 +1,22 @@
 <template>
   <v-container>
-    <v-row align="end" class="mb-10">
-      <v-col>
-        <p class="text-display-medium font-weight-black text-black mb-2">
+    <v-row align="end" class="mb-6 mb-md-10">
+      <v-col cols="12" sm="">
+        <p
+          class="font-weight-black text-black mb-2"
+          :class="mobile ? 'text-h5' : 'text-display-medium'"
+        >
           設定商品
         </p>
         <p class="text-grey-darken-1 mb-0">管理您的個人原創商品與庫存數量。</p>
       </v-col>
-      <v-col cols="auto">
+      <v-col cols="12" sm="auto">
         <v-btn
           class="font-weight-bold"
           color="primary"
           prepend-icon="mdi-plus"
-          size="large"
+          :size="mobile ? 'default' : 'large'"
+          :block="mobile"
           rounded="lg"
           @click="
             dialog = true;
@@ -24,7 +28,84 @@
       </v-col>
     </v-row>
 
-    <v-card class="rounded-xl border-sm" elevation="0">
+    <!-- 手機版：卡片清單 -->
+    <div v-if="mobile">
+      <v-card
+        v-for="item in productTableItems"
+        :key="item.id"
+        border
+        class="mb-3 rounded-lg pa-3"
+        elevation="0"
+      >
+        <div class="d-flex align-center">
+          <v-avatar
+            :color="item.color"
+            class="mr-3"
+            rounded="lg"
+            size="40"
+            variant="tonal"
+          >
+            <v-icon :color="item.color">{{ item.icon }}</v-icon>
+          </v-avatar>
+          <div class="flex-grow-1" style="min-width: 0">
+            <div class="font-weight-bold text-subtitle-1 text-truncate">
+              {{ item.name }}
+            </div>
+            <div class="text-caption text-grey">商品編號: #{{ item.id }}</div>
+          </div>
+          <v-btn
+            color="blue-darken-1"
+            icon="mdi-pencil-outline"
+            size="small"
+            variant="text"
+            @click="openEdit(item)"
+          ></v-btn>
+          <v-btn
+            color="error"
+            icon="mdi-delete-outline"
+            size="small"
+            variant="text"
+            @click="deleteProduct(item.id)"
+          ></v-btn>
+        </div>
+
+        <v-divider class="my-3"></v-divider>
+
+        <div class="d-flex justify-space-between align-center">
+          <div>
+            <span class="text-caption text-grey-darken-1 mr-2">原價</span>
+            <span class="font-weight-medium">{{ item.priceDisplay }}</span>
+          </div>
+          <v-chip
+            :color="item.color"
+            size="small"
+            variant="flat"
+            class="font-weight-bold"
+          >
+            庫存 {{ item.total_inventory }} 件
+          </v-chip>
+        </div>
+      </v-card>
+
+      <v-card
+        v-if="productTableItems.length === 0 && !loading"
+        border
+        elevation="0"
+        class="rounded-lg pa-10 text-center text-grey"
+      >
+        目前尚無商品，點擊上方新增
+      </v-card>
+
+      <v-progress-linear
+        v-if="loading"
+        indeterminate
+        color="primary"
+        rounded
+      ></v-progress-linear>
+    </div>
+
+    <!-- 桌機版：表格 -->
+    <v-card v-else class="rounded-xl border-sm" elevation="0">
       <v-data-table
         :headers="headers"
         :items="productTableItems"
@@ -201,6 +282,8 @@
 </template>
 
 <script setup lang="ts">
+import { useDisplay } from "vuetify";
+
 interface Product {
   id: number;
   name: string;
@@ -211,6 +294,7 @@ interface Product {
 
 const supabase = useSupabaseClient();
 const userStore = useMainStore();
+const { smAndDown: mobile } = useDisplay();
 
 useHead({
   title: "設定商品",

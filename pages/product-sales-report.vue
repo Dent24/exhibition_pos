@@ -2,7 +2,10 @@
   <v-container>
     <v-row align="end" class="mb-6">
       <v-col>
-        <p class="text-display-medium font-weight-black text-black mb-2">
+        <p
+          class="font-weight-black text-black mb-2"
+          :class="mobile ? 'text-h5' : 'text-display-medium'"
+        >
           商品銷售統計
         </p>
         <p class="text-grey-darken-1 mb-0">查看商品在各展覽的銷售表現</p>
@@ -24,7 +27,22 @@
         :key="ex.id"
         class="mb-4 border-lg"
       >
-        <v-expansion-panel-title class="bg-primary text-white">
+        <!-- 手機版標題 -->
+        <v-expansion-panel-title v-if="mobile" class="bg-primary text-white">
+          <div class="w-100 pr-2">
+            <div class="font-weight-black text-truncate mb-1">
+              <v-icon icon="mdi-calendar-star" size="18" class="mr-1"></v-icon>
+              {{ ex.name }}
+            </div>
+            <div class="d-flex justify-space-between align-center">
+              <span class="text-caption">總銷量: {{ ex.total_qty }}</span>
+              <span class="font-weight-black">總應得: ${{ ex.total_rev }}</span>
+            </div>
+          </div>
+        </v-expansion-panel-title>
+
+        <!-- 桌機版標題 -->
+        <v-expansion-panel-title v-else class="bg-primary text-white">
           <v-row no-gutters align="center">
             <v-col cols="6" class="text-h6 font-weight-black">
               <v-icon icon="mdi-calendar-star" class="mr-2"></v-icon>
@@ -48,7 +66,53 @@
             variant="flat"
             class="mb-6 border overflow-hidden shadow-sm"
           >
-            <v-toolbar density="compact" color="white" class="border-b px-4">
+            <!-- 攤位標頭 -->
+            <div v-if="mobile" class="pa-3 border-b">
+              <div class="d-flex align-center mb-2">
+                <v-icon
+                  icon="mdi-storefront"
+                  color="primary"
+                  size="18"
+                  class="mr-2"
+                ></v-icon>
+                <span class="font-weight-bold text-truncate"
+                  >攤位：{{ booth.booth_number }}</span
+                >
+                <v-chip size="x-small" variant="tonal" class="ml-2 flex-shrink-0"
+                  >攤主: {{ booth.owner_name }}</v-chip
+                >
+              </div>
+              <div class="d-flex align-center justify-space-between">
+                <span class="text-subtitle-2"
+                  >攤位小計: <b>${{ booth.booth_total_rev }}</b></span
+                >
+                <v-btn
+                  v-if="!booth.all_paid"
+                  size="small"
+                  color="orange-darken-1"
+                  elevation="1"
+                  @click="confirmBoothPayment(booth)"
+                >
+                  確認整攤收款
+                </v-btn>
+                <v-chip
+                  v-else
+                  size="small"
+                  color="blue"
+                  variant="flat"
+                  prepend-icon="mdi-check-circle"
+                >
+                  已結清
+                </v-chip>
+              </div>
+            </div>
+
+            <v-toolbar
+              v-else
+              density="compact"
+              color="white"
+              class="border-b px-4"
+            >
               <v-icon
                 icon="mdi-storefront"
                 color="primary"
@@ -87,7 +151,67 @@
               </div>
             </v-toolbar>
 
-            <v-table density="comfortable" class="bg-white">
+            <!-- 手機版：項目卡片 -->
+            <div v-if="mobile" class="pa-2 bg-white">
+              <v-card
+                v-for="item in booth.items"
+                :key="item.key"
+                border
+                elevation="0"
+                class="mb-2 pa-3 rounded-lg"
+              >
+                <div class="d-flex align-center">
+                  <v-icon
+                    :color="item.is_bundle ? 'purple' : 'grey'"
+                    size="small"
+                    class="mr-1"
+                  >
+                    {{
+                      item.is_bundle ? "mdi-package-variant" : "mdi-tag-outline"
+                    }}
+                  </v-icon>
+                  <span
+                    class="font-weight-bold flex-grow-1 text-truncate"
+                    :class="item.quantity === 0 ? 'text-grey' : ''"
+                  >
+                    {{ item.display_name }}
+                  </span>
+                  <v-chip
+                    v-if="item.quantity === 0"
+                    size="x-small"
+                    variant="outlined"
+                    color="grey"
+                    class="flex-shrink-0"
+                    >未開單</v-chip
+                  >
+                </div>
+                <div
+                  v-if="item.is_bundle"
+                  class="text-caption text-grey-darken-1 mt-1"
+                >
+                  <v-icon size="10">mdi-subdirectory-arrow-right</v-icon>
+                  內含您的商品：{{ item.sub_products.join("、") }}
+                </div>
+
+                <v-divider class="my-2"></v-divider>
+
+                <div class="d-flex justify-space-between align-center">
+                  <span class="text-caption text-grey-darken-1">
+                    原價/件 ${{ item.event_price }} · 銷量
+                    {{ item.quantity }}
+                  </span>
+                  <span
+                    class="font-weight-black"
+                    :class="item.quantity === 0 ? 'text-grey' : 'text-primary'"
+                  >
+                    ${{ item.revenue }}
+                  </span>
+                </div>
+              </v-card>
+            </div>
+
+            <!-- 桌機版：表格 -->
+            <v-table v-else density="comfortable" class="bg-white">
               <thead>
                 <tr class="bg-grey-lighten-4">
                   <th class="text-left">銷售項目 / 來源</th>
@@ -166,8 +290,11 @@
 </template>
 
 <script setup lang="ts">
+import { useDisplay } from "vuetify";
+
 const supabase = useSupabaseClient();
 const userStore = useMainStore();
+const { smAndDown: mobile } = useDisplay();
 
 useHead({
   title: "商品銷售統計",

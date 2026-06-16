@@ -1,18 +1,22 @@
 <template>
   <v-container>
-    <v-row align="end" class="mb-10">
-      <v-col>
-        <p class="text-display-medium font-weight-black text-black mb-2">
+    <v-row align="end" class="mb-6 mb-md-10">
+      <v-col cols="12" md="">
+        <p
+          class="font-weight-black text-black mb-2"
+          :class="mobile ? 'text-h5' : 'text-display-medium'"
+        >
           設定參展攤位
         </p>
         <p class="text-grey-darken-1 mb-0">管理展場平面位置與攤主進駐資訊。</p>
       </v-col>
-      <v-col cols="auto" class="d-flex ga-2">
+      <v-col cols="12" md="auto" class="d-flex ga-2" :class="{ 'flex-column': mobile }">
         <v-btn
           class="font-weight-bold"
           color="primary"
           prepend-icon="mdi-plus"
-          size="large"
+          :size="mobile ? 'default' : 'large'"
+          :block="mobile"
           @click="openCreate('exhibition')"
         >
           新增參展展覽
@@ -21,7 +25,8 @@
           class="font-weight-bold"
           color="deep-purple"
           prepend-icon="mdi-truck-delivery-outline"
-          size="large"
+          :size="mobile ? 'default' : 'large'"
+          :block="mobile"
           variant="flat"
           @click="openCreate('permanent')"
         >
@@ -91,7 +96,94 @@
       </v-col>
     </v-row>
 
-    <v-card :loading="loading">
+    <!-- 手機版：卡片清單 -->
+    <div v-if="mobile">
+      <v-progress-linear
+        v-if="loading"
+        indeterminate
+        color="primary"
+        class="mb-4"
+        rounded
+      ></v-progress-linear>
+
+      <v-card
+        v-for="item in exhibitionsTableItems"
+        :key="item.id"
+        border
+        elevation="0"
+        class="mb-3 rounded-lg pa-3"
+      >
+        <div class="d-flex align-center">
+          <v-avatar
+            :color="item.color"
+            class="mr-3"
+            rounded="lg"
+            size="40"
+            variant="tonal"
+          >
+            <v-icon :color="item.color">{{ item.icon }}</v-icon>
+          </v-avatar>
+          <div class="flex-grow-1" style="min-width: 0">
+            <div class="font-weight-bold text-subtitle-1 text-truncate">
+              {{ item.name }}
+            </div>
+            <div class="d-flex align-center text-caption text-grey-darken-1">
+              <v-icon class="mr-1" color="primary" size="14"
+                >mdi-map-marker</v-icon
+              >
+              {{ item.location }}
+            </div>
+          </div>
+          <template v-if="!item.isEnded">
+            <v-btn
+              color="blue-darken-1"
+              icon="mdi-pencil-outline"
+              size="small"
+              variant="text"
+              @click="openEdit(item.raw)"
+            ></v-btn>
+            <v-btn
+              color="error"
+              icon="mdi-delete-outline"
+              size="small"
+              variant="text"
+              @click="deleteBooth(item.id)"
+            ></v-btn>
+          </template>
+          <v-chip v-else size="x-small" color="grey-lighten-1" variant="flat"
+            >已鎖定</v-chip
+          >
+        </div>
+
+        <v-divider class="my-3"></v-divider>
+
+        <div class="d-flex justify-space-between align-center">
+          <div class="text-caption text-grey-darken-1">
+            {{ item.dateRange }}
+          </div>
+          <v-chip
+            class="font-weight-bold"
+            :color="item.booth !== '未設定' ? 'success' : 'grey-lighten-4'"
+            size="small"
+            variant="flat"
+          >
+            攤位：{{ item.booth }}
+          </v-chip>
+        </div>
+      </v-card>
+
+      <v-card
+        v-if="exhibitionsTableItems.length === 0 && !loading"
+        border
+        elevation="0"
+        class="rounded-lg pa-10 text-center text-grey"
+      >
+        目前沒有參展紀錄
+      </v-card>
+    </div>
+
+    <!-- 桌機版：表格 -->
+    <v-card v-else :loading="loading">
       <v-data-table
         :headers="headers"
         :items="exhibitionsTableItems"
@@ -282,6 +374,10 @@
 </template>
 
 <script setup lang="ts">
+import { useDisplay } from "vuetify";
+
+const { smAndDown: mobile } = useDisplay();
+
 // 定義介面
 interface Exhibition {
   id: number;

@@ -1,8 +1,11 @@
 <template>
   <v-container>
-    <v-row align="end" class="mb-10">
+    <v-row align="end" class="mb-6 mb-md-10">
       <v-col>
-        <p class="text-display-medium font-weight-black text-black mb-2">
+        <p
+          class="font-weight-black text-black mb-2"
+          :class="mobile ? 'text-h5' : 'text-display-medium'"
+        >
           設定攤位商品
         </p>
         <p class="text-grey-darken-1 mb-0">
@@ -17,7 +20,53 @@
         :key="booth.id"
         class="mb-4"
       >
-        <v-expansion-panel-title class="bg-grey-lighten-4">
+        <!-- 手機版標題：直式堆疊 -->
+        <v-expansion-panel-title v-if="mobile" class="bg-grey-lighten-4">
+          <div class="w-100 pr-2">
+            <div class="d-flex align-center justify-space-between mb-2">
+              <span class="font-weight-bold text-primary text-truncate">{{
+                booth.exhibitions?.name ?? booth.name
+              }}</span>
+              <v-chip
+                :color="
+                  getStatus(booth.exhibitions?.start_date) === 'locked'
+                    ? 'error'
+                    : 'success'
+                "
+                size="x-small"
+                class="ml-2 flex-shrink-0"
+              >
+                {{
+                  getStatus(booth.exhibitions?.start_date) === "locked"
+                    ? "鎖定"
+                    : "可編輯"
+                }}
+              </v-chip>
+            </div>
+            <div class="d-flex flex-wrap ga-1">
+              <v-chip
+                v-if="!booth.exhibitions"
+                size="x-small"
+                color="deep-purple"
+                variant="flat"
+              >
+                通販
+              </v-chip>
+              <v-chip size="x-small" variant="outlined">
+                攤位：{{ booth.booth_number || "未定" }}
+              </v-chip>
+              <v-chip
+                :color="booth.details.length ? 'primary' : 'error'"
+                size="x-small"
+              >
+                項目數：{{ booth.details.length }}
+              </v-chip>
+            </div>
+          </div>
+        </v-expansion-panel-title>
+
+        <!-- 桌機版標題 -->
+        <v-expansion-panel-title v-else class="bg-grey-lighten-4">
           <v-row no-gutters align="center">
             <v-col cols="8">
               <span class="font-weight-bold text-primary">{{
@@ -91,7 +140,203 @@
         </v-expansion-panel-title>
 
         <v-expansion-panel-text>
+          <!-- 手機版：卡片清單 -->
+          <div v-if="mobile">
+            <v-menu
+              v-if="getStatus(booth.exhibitions?.start_date) === 'editable'"
+            >
+              <template v-slot:activator="{ props }">
+                <v-btn
+                  color="primary"
+                  prepend-icon="mdi-plus"
+                  size="small"
+                  block
+                  class="mb-3"
+                  v-bind="props"
+                >
+                  上架新項目
+                </v-btn>
+              </template>
+              <v-list density="compact" class="py-0">
+                <v-list-item
+                  prepend-icon="mdi-package-variant"
+                  title="上架單一商品"
+                  @click="openAddDialog(booth.id, 'product')"
+                ></v-list-item>
+                <v-list-item
+                  prepend-icon="mdi-gift-outline"
+                  title="建立組合優惠"
+                  @click="openAddDialog(booth.id, 'bundle')"
+                ></v-list-item>
+              </v-list>
+            </v-menu>
+
+            <div
+              v-if="booth.details.length === 0"
+              class="pa-6 text-center text-grey"
+            >
+              目前尚無項目，請新增商品或組合包
+            </div>
+
+            <v-card
+              v-for="item in booth.details"
+              :key="item.id"
+              border
+              elevation="0"
+              class="mb-2 pa-3 rounded-lg"
+            >
+              <div class="d-flex align-center">
+                <v-avatar
+                  :color="
+                    item.bundle
+                      ? 'purple-lighten-5'
+                      : item.is_paid
+                      ? 'blue-lighten-5'
+                      : 'grey-lighten-4'
+                  "
+                  rounded="lg"
+                  size="36"
+                  class="mr-3"
+                >
+                  <v-icon
+                    :color="
+                      item.bundle ? 'purple' : item.is_paid ? 'blue' : 'grey'
+                    "
+                    size="18"
+                  >
+                    {{
+                      item.bundle
+                        ? "mdi-gift-outline"
+                        : item.is_paid
+                        ? "mdi-check-decagram"
+                        : "mdi-package-variant"
+                    }}
+                  </v-icon>
+                </v-avatar>
+                <div class="flex-grow-1" style="min-width: 0">
+                  <div
+                    class="font-weight-bold"
+                    :class="item.is_paid ? 'text-grey' : ''"
+                  >
+                    {{ item.bundle ? item.bundle?.name : item.product?.name }}
+                  </div>
+                  <div
+                    v-if="item.bundle"
+                    class="text-caption text-grey-darken-1"
+                  >
+                    {{
+                      item.bundle.items.map((i) => i.product.name).join("、")
+                    }}
+                  </div>
+                </div>
+                <v-chip
+                  v-if="item.is_paid"
+                  color="blue"
+                  size="x-small"
+                  variant="flat"
+                  class="font-weight-bold flex-shrink-0"
+                  prepend-icon="mdi-shield-check"
+                >
+                  已結清
+                </v-chip>
+                <v-chip
+                  v-else
+                  color="orange-darken-1"
+                  size="x-small"
+                  variant="tonal"
+                  class="font-weight-bold flex-shrink-0"
+                >
+                  銷售中
+                </v-chip>
+              </div>
+
+              <v-divider class="my-3"></v-divider>
+
+              <div class="d-flex align-center justify-space-between">
+                <div class="d-flex ga-4 text-body-2">
+                  <div>
+                    <div class="text-caption text-grey">原價</div>
+                    <span v-if="item.bundle" class="font-weight-bold"
+                      >${{ calculateBundleOriginalPrice(item.bundle) }}</span
+                    >
+                    <span v-else>${{ item.product?.original_price }}</span>
+                  </div>
+                  <div>
+                    <div class="text-caption text-grey">現場售價</div>
+                    <span
+                      :class="
+                        item.is_paid
+                          ? 'text-grey'
+                          : 'text-primary font-weight-black'
+                      "
+                      >${{ item.event_price }}</span
+                    >
+                  </div>
+                  <div>
+                    <div class="text-caption text-grey">庫存</div>
+                    <span
+                      v-if="item.bundle"
+                      :class="
+                        calculateBundleStock(item.bundle) <= 5
+                          ? 'text-error font-weight-bold'
+                          : ''
+                      "
+                      >{{ calculateBundleStock(item.bundle) }}</span
+                    >
+                    <span
+                      v-else
+                      :class="
+                        item.product?.total_inventory <= 5
+                          ? 'text-error font-weight-bold'
+                          : ''
+                      "
+                      >{{ item.product?.total_inventory }}</span
+                    >
+                  </div>
+                </div>
+
+                <div class="flex-shrink-0">
+                  <template v-if="item.is_paid">
+                    <v-icon icon="mdi-lock" color="blue" size="18"></v-icon>
+                  </template>
+                  <template
+                    v-else-if="
+                      getStatus(
+                        getBoothByDetailId(item.id)?.exhibitions?.start_date
+                      ) === 'editable'
+                    "
+                  >
+                    <v-btn
+                      icon="mdi-pencil-outline"
+                      variant="text"
+                      color="blue-darken-1"
+                      size="small"
+                      @click="
+                        openEditDialog(getBoothByDetailId(item.id)?.id, item)
+                      "
+                    ></v-btn>
+                    <v-btn
+                      icon="mdi-delete-outline"
+                      variant="text"
+                      color="error"
+                      size="small"
+                      @click="removeProduct(item.id)"
+                    ></v-btn>
+                  </template>
+                  <v-icon
+                    v-else
+                    icon="mdi-lock-clock"
+                    color="grey-lighten-1"
+                    size="small"
+                  ></v-icon>
+                </div>
+              </div>
+            </v-card>
+          </div>
+
+          <!-- 桌機版：表格 -->
           <v-data-table
+            v-else
             :headers="headers"
             :items="booth.details"
             :items-per-page="-1"
@@ -391,8 +636,11 @@
 </template>
 
 <script setup lang="ts">
+import { useDisplay } from "vuetify";
+
 const supabase = useSupabaseClient();
 const userStore = useMainStore();
+const { smAndDown: mobile } = useDisplay();
 
 const headers: ReadonlyArray<{
   title: string;

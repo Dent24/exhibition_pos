@@ -1,8 +1,11 @@
 <template>
   <v-container>
-    <v-row align="end" class="mb-10">
+    <v-row align="end" class="mb-6 mb-md-10">
       <v-col>
-        <p class="text-display-medium font-weight-black text-black mb-2">
+        <p
+          class="font-weight-black text-black mb-2"
+          :class="mobile ? 'text-h5' : 'text-display-medium'"
+        >
           設定可售攤主
         </p>
         <p class="text-grey-darken-1 mb-0">授權特定攤主販售您的商品</p>
@@ -15,7 +18,36 @@
         :key="product.id"
         class="mb-2 border"
       >
-        <v-expansion-panel-title class="bg-grey-lighten-4">
+        <!-- 手機版標題 -->
+        <v-expansion-panel-title v-if="mobile" class="bg-grey-lighten-4">
+          <div class="w-100 pr-2">
+            <div class="font-weight-bold text-primary mb-2 text-truncate">
+              <v-icon icon="mdi-package-variant" class="mr-1" size="18"></v-icon>
+              {{ product.name }}
+            </div>
+            <div class="d-flex align-center ga-2">
+              <v-chip
+                size="x-small"
+                variant="tonal"
+                :color="product.permissions.length ? 'info' : 'error'"
+              >
+                {{ product.permissions.length }} 位授權
+              </v-chip>
+              <v-btn
+                size="x-small"
+                color="primary"
+                prepend-icon="mdi-account-plus"
+                variant="flat"
+                @click.stop="openAddDialog(product)"
+              >
+                新增授權
+              </v-btn>
+            </div>
+          </div>
+        </v-expansion-panel-title>
+
+        <!-- 桌機版標題 -->
+        <v-expansion-panel-title v-else class="bg-grey-lighten-4">
           <v-row no-gutters align="center">
             <v-col cols="6" class="font-weight-bold text-primary">
               <v-icon icon="mdi-package-variant" class="mr-2"></v-icon>
@@ -45,7 +77,60 @@
         </v-expansion-panel-title>
 
         <v-expansion-panel-text>
+          <!-- 手機版：授權清單 -->
+          <div v-if="mobile">
+            <div
+              v-if="product.permissions.length === 0"
+              class="pa-6 text-center text-grey text-body-2"
+            >
+              <v-icon
+                icon="mdi-account-off-outline"
+                class="mb-2"
+                size="large"
+              ></v-icon>
+              <p>尚未授權給任何攤主</p>
+            </div>
+            <v-card
+              v-for="item in product.permissions"
+              :key="item.id"
+              border
+              elevation="0"
+              class="mb-2 pa-3 rounded-lg d-flex align-center"
+            >
+              <div class="flex-grow-1" style="min-width: 0">
+                <div class="font-weight-bold text-truncate">
+                  {{ item.owner_nickname }}
+                </div>
+                <v-chip
+                  :color="item.enable ? 'success' : 'grey-lighten-1'"
+                  :prepend-icon="
+                    item.enable ? 'mdi-check-circle' : 'mdi-minus-circle'
+                  "
+                  size="x-small"
+                  variant="flat"
+                  class="font-weight-bold mt-1"
+                >
+                  {{ item.enable ? "已啟用" : "已停用" }}
+                </v-chip>
+              </div>
+              <v-btn
+                :color="item.enable ? 'error' : 'success'"
+                size="small"
+                :variant="item.enable ? 'text' : 'tonal'"
+                :prepend-icon="
+                  item.enable ? 'mdi-link-off' : 'mdi-link-variant'
+                "
+                class="font-weight-bold flex-shrink-0"
+                @click="togglePermission(item)"
+              >
+                {{ item.enable ? "取消授權" : "恢復授權" }}
+              </v-btn>
+            </v-card>
+          </div>
+
+          <!-- 桌機版：表格 -->
           <v-data-table
+            v-else
             :headers="permissionHeaders"
             :items="product.permissions"
             density="comfortable"
@@ -178,8 +263,11 @@ useHead({
   title: "設定可售攤主",
 });
 
+import { useDisplay } from "vuetify";
+
 const supabase = useSupabaseClient();
 const userStore = useMainStore();
+const { smAndDown: mobile } = useDisplay();
 
 const permissionHeaders: ReadonlyArray<{
   title: string;

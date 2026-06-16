@@ -1,8 +1,11 @@
 <template>
   <v-container>
-    <v-row align="end" class="mb-10">
+    <v-row align="end" class="mb-6 mb-md-10">
       <v-col>
-        <p class="text-display-medium font-weight-black text-black mb-2">
+        <p
+          class="font-weight-black text-black mb-2"
+          :class="mobile ? 'text-h5' : 'text-display-medium'"
+        >
           會員資料
         </p>
         <p class="text-grey-darken-1 mb-0">查看您的帳號資訊並調整暱稱與身分。</p>
@@ -68,7 +71,7 @@
 
       <!-- 編輯表單 -->
       <v-col cols="12" md="7">
-        <v-card class="pa-8 rounded-xl">
+        <v-card class="rounded-xl" :class="mobile ? 'pa-5' : 'pa-8'">
           <h3 class="font-weight-black text-grey-darken-4 mb-6">編輯資料</h3>
 
           <div class="mb-6">
@@ -138,10 +141,13 @@
 </template>
 
 <script setup lang="ts">
+import { useDisplay } from "vuetify";
+
 useHead({
   title: "會員資料",
 });
 
+const { smAndDown: mobile } = useDisplay();
 const supabase = useSupabaseClient();
 const user = useSupabaseUser();
 const mainStore = useMainStore();
