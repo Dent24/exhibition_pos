@@ -7,12 +7,12 @@ interface QueuedCheckout {
   queuedAt: number
 }
 
-const ANONYMOUS_PHONE = '0900000000'
-const QUEUE_STORAGE_KEY = 'pos-checkout-queue'
+// ANONYMOUS_PHONE / QUEUE_STORAGE_KEY 已抽至 utils/constants.ts（Nuxt 自動 import）
 
 export const usePosSystem = () => {
-  const supabase = useSupabaseClient();
+  const supabase = useDb();
   const userStore = useMainStore();
+  const snackbar = useSnackbar();
 
   const booths = ref<any[]>([]);
   const selectedBooth = ref<number | null>(null);
@@ -117,16 +117,16 @@ export const usePosSystem = () => {
   watch(selectedBooth, fetchProducts);
 
   const addToCart = (item: any) => {
-    if (item.is_paid) return alert('此項目已結清！');
+    if (item.is_paid) return snackbar.warning('此項目已結清！');
 
     const currentInventory = item.computed_inventory;
     const exist = cart.value.find((c) => c.id === item.id);
 
     if (exist) {
-      if (exist.quantity >= currentInventory) return alert('已達庫存上限！');
+      if (exist.quantity >= currentInventory) return snackbar.warning('已達庫存上限！');
       exist.quantity++;
     } else {
-      if (currentInventory <= 0) return alert('已無庫存！');
+      if (currentInventory <= 0) return snackbar.warning('已無庫存！');
       cart.value.push({ ...item, quantity: 1 });
     }
   };

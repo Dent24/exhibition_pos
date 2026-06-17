@@ -135,7 +135,7 @@
                     {{ order.order_number }}
                   </div>
                   <div class="text-caption text-grey">
-                    {{ formatDate(order.created_at) }}
+                    {{ formatDateTime(order.created_at) }}
                   </div>
                 </div>
                 <div class="text-right flex-shrink-0 ml-2">
@@ -226,7 +226,7 @@
               class="rounded-xl border bg-white"
             >
               <template v-slot:item.created_at="{ item }">
-                {{ formatDate(item.created_at) }}
+                {{ formatDateTime(item.created_at) }}
               </template>
 
               <template v-slot:item.method="{ item }">
@@ -525,9 +525,11 @@
 <script setup lang="ts">
 import { useDisplay } from "vuetify";
 
-const supabase = useSupabaseClient();
+const supabase = useDb();
 const userStore = useMainStore();
 const { smAndDown: mobile } = useDisplay();
+const snackbar = useSnackbar();
+const { confirm } = useConfirm();
 
 useHead({ title: "攤位銷售紀錄" });
 
@@ -561,16 +563,6 @@ const orderHeaders: ReadonlyArray<{
 const manualCartTotal = computed(() =>
   manualCart.value.reduce((s, i) => s + i.event_price * i.quantity, 0)
 );
-
-const formatDate = (str: string) => {
-  if (!str) return "";
-  return new Date(str).toLocaleString("zh-TW", {
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-};
 
 const fetchSalesReport = async () => {
   if (!userStore.profile?.id) return;
@@ -696,14 +688,14 @@ const saveManualSale = async () => {
         quantity: i.quantity,
       })),
       p_method: manualForm.value.method,
-      p_phone: manualForm.value.phone || "0900000000",
+      p_phone: manualForm.value.phone || ANONYMOUS_PHONE,
     });
     if (error) throw error;
-    alert(`新增成功！訂單編號：${data[0].r_order_number}`);
+    snackbar.success(`新增成功！訂單編號：${data[0].r_order_number}`);
     addDialog.value = false;
     await fetchSalesReport();
   } catch (err: any) {
-    alert("新增失敗：" + err.message);
+    snackbar.error("新增失敗：" + err.message);
   } finally {
     saving.value = false;
   }
@@ -711,9 +703,12 @@ const saveManualSale = async () => {
 
 const deleteOrder = async (order: any, _boothId: number) => {
   if (
-    !confirm(
-      `確定刪除訂單 ${order.order_number} 的所有銷售紀錄？此動作將回補庫存。`
-    )
+    !(await confirm({
+      title: "刪除訂單",
+      message: `確定刪除訂單 ${order.order_number} 的所有銷售紀錄？此動作將回補庫存。`,
+      confirmText: "刪除",
+      confirmColor: "error",
+    }))
   )
     return;
   loading.value = true;
@@ -726,7 +721,7 @@ const deleteOrder = async (order: any, _boothId: number) => {
     }
     await fetchSalesReport();
   } catch (err: any) {
-    alert("刪除失敗：" + err.message);
+    snackbar.error("刪除失敗：" + err.message);
   } finally {
     loading.value = false;
   }
@@ -744,47 +739,33 @@ watch(addDialog, (val) => {
 });
 
 const exportBooth = (booth: any) => {
-  const csvCell = (val: any) => {
-    const str = String(val ?? "");
-    return str.includes(",") || str.includes('"') || str.includes("\n")
-      ? `"${str.replace(/"/g, '""')}"`
-      : str;
-  };
-
-  const rows: string[] = [];
+  const rows: (string | number)[][] = [];
 
   // 攤位摘要列
-  rows.push([
-    "展覽名稱", "攤位編號", "訂單總數", "總收入"
-  ].map(csvCell).join(","));
+  rows.push(["展覽名稱", "攤位編號", "訂單總數", "總收入"]);
   rows.push([
     booth.exhibition_name,
     booth.booth_number,
     booth.order_count,
     booth.total_revenue,
-  ].map(csvCell).join(","));
+  ]);
 
-  rows.push(""); // 空行分隔
+  rows.push([]); // 空行分隔
 
   // 訂單明細標頭
   rows.push([
     "訂單編號", "交易時間", "支付方式", "電話末三碼",
-    "品項名稱", "類型", "數量", "單價", "小計", "訂單總金額"
-  ].map(csvCell).join(","));
+    "品項名稱", "類型", "數量", "單價", "小計", "訂單總金額",
+  ]);
 
   for (const order of booth.orders) {
-    const dateStr = order.created_at
-      ? new Date(order.created_at).toLocaleString("zh-TW", {
-          year: "numeric", month: "2-digit", day: "2-digit",
-          hour: "2-digit", minute: "2-digit",
-        })
-      : "";
+    const dateStr = formatDateTimeFull(order.created_at);
 
     if (order.lines.length === 0) {
       rows.push([
         order.order_number, dateStr, order.method, order.phone,
         "", "", "", "", "", order.total,
-      ].map(csvCell).join(","));
+      ]);
     } else {
       order.lines.forEach((line: any, idx: number) => {
         rows.push([
@@ -798,23 +779,18 @@ const exportBooth = (booth: any) => {
           line.unit_price,
           line.subtotal,
           idx === 0 ? order.total : "",
-        ].map(csvCell).join(","));
+        ]);
       });
     }
   }
 
-  rows.push(""); // 空行分隔
-  rows.push(["", "", "", "", "", "", "", "", "總計", booth.total_revenue].map(csvCell).join(","));
+  rows.push([]); // 空行分隔
+  rows.push(["", "", "", "", "", "", "", "", "總計", booth.total_revenue]);
 
-  // 加 BOM 讓 Excel 正確顯示中文
-  const bom = "\uFEFF";
-  const blob = new Blob([bom + rows.join("\n")], { type: "text/csv;charset=utf-8;" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `銷售紀錄_${booth.exhibition_name}_攤位${booth.booth_number}.csv`;
-  a.click();
-  URL.revokeObjectURL(url);
+  downloadCsv(
+    `銷售紀錄_${booth.exhibition_name}_攤位${booth.booth_number}.csv`,
+    rows
+  );
 };
 
 onMounted(fetchSalesReport);

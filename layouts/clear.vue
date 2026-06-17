@@ -4,6 +4,7 @@
       <v-main>
         <NuxtPage />
       </v-main>
+      <AppUi />
     </v-layout>
   </v-app>
 </template>

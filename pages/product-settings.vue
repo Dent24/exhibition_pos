@@ -292,9 +292,11 @@ interface Product {
   seller_id: number;
 }
 
-const supabase = useSupabaseClient();
+const supabase = useDb();
 const userStore = useMainStore();
 const { smAndDown: mobile } = useDisplay();
+const snackbar = useSnackbar();
+const { confirm } = useConfirm();
 
 useHead({
   title: "設定商品",
@@ -358,7 +360,7 @@ const fetchMyProducts = async () => {
     if (error) throw error;
     products.value = data || [];
   } catch (err: any) {
-    alert("讀取商品失敗: " + err.message);
+    snackbar.error("讀取商品失敗: " + err.message);
   } finally {
     loading.value = false;
   }
@@ -388,8 +390,9 @@ const saveProduct = async () => {
 
     dialog.value = false;
     await fetchMyProducts();
+    snackbar.success(isEdit.value ? "商品已更新" : "商品已新增");
   } catch (err: any) {
-    alert("儲存失敗: " + err.message);
+    snackbar.error("儲存失敗: " + err.message);
   } finally {
     loading.value = false;
   }
@@ -408,7 +411,7 @@ const deleteProduct = async (id: number) => {
 
     if (boothError) throw boothError;
     if (boothCount && boothCount > 0) {
-      alert(
+      snackbar.error(
         `無法刪除：此商品目前已直接上架到 ${boothCount} 個展覽攤位。請先移除攤位上的設定。`
       );
       return;
@@ -428,7 +431,7 @@ const deleteProduct = async (id: number) => {
         .in("detail_id", detailIds);
 
       if (salesCount && salesCount > 0) {
-        alert(
+        snackbar.error(
           `無法刪除：此商品已有 ${salesCount} 筆銷售紀錄，無法刪除以維持帳務準確。`
         );
         return;
@@ -470,7 +473,7 @@ const deleteProduct = async (id: number) => {
           .in("detail_id", bDetailIds);
 
         if (bundleSalesCount && bundleSalesCount > 0) {
-          alert(
+          snackbar.error(
             `無法刪除：此商品所屬的組合包「${bundleNames}」已有銷售紀錄。為了報表準確性，禁止刪除。`
           );
           return;
@@ -478,14 +481,22 @@ const deleteProduct = async (id: number) => {
       }
 
       // 如果組合包還沒賣過，但已經綁定了
-      alert(
+      snackbar.error(
         `無法刪除：此商品已被綁定在組合包「${bundleNames}」中。請先至組合包設定頁面將其移除。`
       );
       return;
     }
 
     // --- 4. 通過所有檢查後執行刪除 ---
-    if (!confirm("確定要刪除此商品嗎？此動作無法復原。")) return;
+    if (
+      !(await confirm({
+        title: "刪除商品",
+        message: "確定要刪除此商品嗎？此動作無法復原。",
+        confirmText: "刪除",
+        confirmColor: "error",
+      }))
+    )
+      return;
 
     const { error: deleteError } = await supabase
       .from("Products")
@@ -496,10 +507,10 @@ const deleteProduct = async (id: number) => {
 
     // 重新整理列表
     await fetchMyProducts();
-    alert("商品已刪除");
+    snackbar.success("商品已刪除");
   } catch (err: any) {
     console.error("刪除檢查失敗:", err);
-    alert("刪除失敗: " + err.message);
+    snackbar.error("刪除失敗: " + err.message);
   } finally {
     loading.value = false;
   }

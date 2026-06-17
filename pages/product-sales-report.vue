@@ -292,9 +292,11 @@
 <script setup lang="ts">
 import { useDisplay } from "vuetify";
 
-const supabase = useSupabaseClient();
+const supabase = useDb();
 const userStore = useMainStore();
 const { smAndDown: mobile } = useDisplay();
+const snackbar = useSnackbar();
+const { confirm } = useConfirm();
 
 useHead({
   title: "商品銷售統計",
@@ -486,9 +488,11 @@ const fetchExhibitionReport = async () => {
 };
 
 const confirmBoothPayment = async (booth: any) => {
-  const ok = confirm(
-    `確定收到攤位 ${booth.booth_number} 的款項 $${booth.booth_total_rev} 嗎？\n(將包含一般單品與組合包分潤)`
-  );
+  const ok = await confirm({
+    title: "確認整攤收款",
+    message: `確定收到攤位 ${booth.booth_number} 的款項 $${booth.booth_total_rev} 嗎？\n(將包含一般單品與組合包分潤)`,
+    confirmText: "確認收款",
+  });
   if (!ok) return;
 
   loading.value = true;
@@ -507,9 +511,9 @@ const confirmBoothPayment = async (booth: any) => {
     if (error) throw error;
 
     await fetchExhibitionReport();
-    alert("收款確認成功！");
+    snackbar.success("收款確認成功！");
   } catch (err: any) {
-    alert("確認失敗: " + err.message);
+    snackbar.error("確認失敗: " + err.message);
   } finally {
     loading.value = false;
   }

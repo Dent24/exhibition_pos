@@ -55,20 +55,39 @@ exhibition_pos/
 │       ├── desktop.vue     # 桌面版 POS 結帳
 │       └── mobile.vue      # 手機版 POS 結帳
 ├── composables/
-│   └── usePosSystem.ts     # POS 核心邏輯（購物車／庫存／離線結帳佇列）
+│   ├── usePosSystem.ts     # POS 核心邏輯（購物車／庫存／離線結帳佇列）
+│   ├── useDb.ts            # 具型別的 Supabase client：useSupabaseClient<Database>()
+│   └── useUi.ts            # 全域 Snackbar 通知 + Confirm 對話框（單例狀態）
+├── components/
+│   └── AppUi.vue           # 全域 UI 回饋元件（掛載於 layouts，渲染 snackbar/confirm）
 ├── stores/
 │   └── main.ts             # Pinia store：使用者 profile 與權限
 ├── layouts/
-│   ├── default.vue         # 含側邊導覽列（依角色顯示選單）
+│   ├── default.vue         # 側邊導覽列（手機改 Hamburger 暫時抽屜，依角色顯示選單）
 │   └── clear.vue           # 無導覽列（登入／註冊／訂單頁）
+├── middleware/
+│   └── auth.global.ts      # 全域路由守衛：登入導向 + is_owner/is_seller 角色權限
+├── utils/                  # 共用工具（Nuxt 自動 import）
+│   ├── format.ts           # formatDate / formatDateTime / formatCurrency
+│   ├── exhibition.ts       # getExhibitionStatus / isExhibitionEnded
+│   ├── csv.ts              # downloadCsv（含 BOM）
+│   └── constants.ts        # ANONYMOUS_PHONE / QUEUE_STORAGE_KEY / USER_STORE_KEY
+├── types/
+│   └── database.ts         # Supabase 資料庫型別（npm run db:types 可重新產生）
 ├── plugins/
-│   └── vuetify.ts          # Vuetify 初始化
+│   ├── vuetify.ts          # Vuetify 初始化
+│   └── supabase-guard.client.ts # 攔截 Supabase REST 400 → 清除登入並導向 /login
 ├── assets/scss/base.scss   # 全域樣式
-├── middleware/             # （目前為空）
-├── utils/                  # （目前為空）
 ├── server/                 # （僅 tsconfig；SPA 模式無 server route）
 └── public/                 # favicon、robots.txt
 ```
+
+### 橫切關注點（Cross-cutting）
+
+- **路由守衛**（[middleware/auth.global.ts](middleware/auth.global.ts)）：集中處理「未登入導向 `/login`」與「跨角色以 URL 直接存取時導回 `/`」。公開路由：`/login`、`/register`、`/forgot-password`、`/reset-password`、`/order/:id`。
+- **全域 UI 回饋**（[composables/useUi.ts](composables/useUi.ts) + [components/AppUi.vue](components/AppUi.vue)）：以 `useSnackbar()` / `useConfirm()` 取代原生 `alert()` / `confirm()`，統一 Vuetify 設計語言。
+- **Supabase 400 守衛**（[plugins/supabase-guard.client.ts](plugins/supabase-guard.client.ts)）：包裝 `window.fetch`，資料 / RPC 請求回 400 時自動登出（排除 `/auth/v1/`）。
+- **型別**（[types/database.ts](types/database.ts)）：透過 `useDb()` 提供具型別的 client；可用 `npm run db:types` 由線上資料庫重新產生（需 `supabase login` 或 `SUPABASE_ACCESS_TOKEN`）。
 
 ---
 

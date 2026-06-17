@@ -377,6 +377,8 @@
 import { useDisplay } from "vuetify";
 
 const { smAndDown: mobile } = useDisplay();
+const snackbar = useSnackbar();
+const { confirm } = useConfirm();
 
 // 定義介面
 interface Exhibition {
@@ -401,7 +403,7 @@ useHead({
   title: "設定參展攤位",
 });
 
-const supabase = useSupabaseClient();
+const supabase = useDb();
 const userStore = useMainStore();
 
 const headers: ReadonlyArray<{
@@ -568,7 +570,7 @@ const fetchMyBooths = async () => {
     if (error) throw error;
     booths.value = data as any;
   } catch (err: any) {
-    alert("讀取攤位失敗: " + err.message);
+    snackbar.error("讀取攤位失敗: " + err.message);
   } finally {
     loading.value = false;
   }
@@ -584,7 +586,7 @@ const fetchAllExhibitions = async () => {
 const saveBooth = async () => {
   // 驗證：通販需填名稱；展覽攤位需選展覽
   if (isPermanent.value) {
-    if (!form.value.name.trim()) return alert("請輸入通販攤位名稱");
+    if (!form.value.name.trim()) return snackbar.warning("請輸入通販攤位名稱");
   } else if (!form.value.exhibition_id) {
     return;
   }
@@ -620,11 +622,13 @@ const saveBooth = async () => {
       if (error) throw error;
     }
 
+    const wasEdit = isEdit.value;
     dialog.value = false;
     await fetchMyBooths(); // 重新整理列表
     resetForm();
+    snackbar.success(wasEdit ? "攤位已更新" : "攤位已新增");
   } catch (err: any) {
-    alert("儲存失敗: " + err.message);
+    snackbar.error("儲存失敗: " + err.message);
   } finally {
     loading.value = false;
   }
@@ -656,7 +660,7 @@ const deleteBooth = async (id: number) => {
 
       // 如果已有銷售，絕對禁止刪除
       if (salesCount && salesCount > 0) {
-        alert(
+        snackbar.error(
           `無法刪除：此攤位已有 ${salesCount} 筆銷售紀錄。為了保留歷史帳務資料，請勿刪除。若不慎設錯，建議將攤位號碼改為「作廢」或聯絡管理員。`
         );
         return;
@@ -673,9 +677,13 @@ const deleteBooth = async (id: number) => {
       // 如果現在時間在展覽期間內
       if (now >= startDate && now <= endDate) {
         if (
-          !confirm(
-            "警告：此展覽活動正在進行中！刪除攤位將導致 POS 系統無法運作。確定要繼續嗎？"
-          )
+          !(await confirm({
+            title: "活動進行中",
+            message:
+              "警告：此展覽活動正在進行中！刪除攤位將導致 POS 系統無法運作。確定要繼續嗎？",
+            confirmText: "仍要刪除",
+            confirmColor: "error",
+          }))
         ) {
           return;
         }
@@ -684,9 +692,13 @@ const deleteBooth = async (id: number) => {
 
     // 3. 執行刪除
     if (
-      !confirm(
-        "確定要刪除此參展紀錄嗎？這也會同時移除該攤位下所有的商品配置（但不會刪除商品本體）。"
-      )
+      !(await confirm({
+        title: "刪除參展紀錄",
+        message:
+          "確定要刪除此參展紀錄嗎？這也會同時移除該攤位下所有的商品配置（但不會刪除商品本體）。",
+        confirmText: "刪除",
+        confirmColor: "error",
+      }))
     )
       return;
 
@@ -699,9 +711,10 @@ const deleteBooth = async (id: number) => {
 
     // 重新整理列表
     await fetchMyBooths();
+    snackbar.success("攤位已刪除");
   } catch (err: any) {
     console.error("刪除檢查失敗:", err);
-    alert("刪除失敗: " + err.message);
+    snackbar.error("刪除失敗: " + err.message);
   } finally {
     loading.value = false;
   }
@@ -739,29 +752,7 @@ const resetForm = () => {
   };
 };
 
-const formatDate = (dateStr: string | null) => {
-  if (!dateStr) return "未定";
-  const date = new Date(dateStr);
-  return date
-    .toLocaleDateString("zh-TW", {
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    })
-    .replace(/-/g, "/"); // 確保輸出為 YYYY/MM/DD
-};
-
-const isExhibitionEnded = (endDateStr: string | null) => {
-  if (!endDateStr) return false;
-
-  const today = new Date();
-  today.setHours(0, 0, 0, 0); // 只比較日期，不比較時間
-
-  const endDate = new Date(endDateStr);
-  endDate.setHours(0, 0, 0, 0);
-
-  return today > endDate;
-};
+// formatDate / isExhibitionEnded 已抽至 utils/（Nuxt 自動 import）
 
 watch(dialog, (val) => {
   // 當 val 為 false 時（代表視窗關閉）

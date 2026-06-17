@@ -638,9 +638,11 @@
 <script setup lang="ts">
 import { useDisplay } from "vuetify";
 
-const supabase = useSupabaseClient();
+const supabase = useDb();
 const userStore = useMainStore();
 const { smAndDown: mobile } = useDisplay();
+const snackbar = useSnackbar();
+const { confirm } = useConfirm();
 
 const headers: ReadonlyArray<{
   title: string;
@@ -700,14 +702,8 @@ const getBoothByDetailId = (detailId: number) => {
   );
 };
 
-const getStatus = (startDate?: string | null) => {
-  // 通販攤位無展覽 (無 start_date)，永遠可編輯
-  if (!startDate) return "editable";
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const start = new Date(startDate);
-  return today >= start ? "locked" : "editable";
-};
+// 攤位可編輯狀態（共用工具，見 utils/exhibition.ts）
+const getStatus = getExhibitionStatus;
 
 const fetchAllData = async () => {
   if (!userStore.profile?.id) return;
@@ -796,11 +792,11 @@ const openEditDialog = (boothId: number, item: any) => {
 const saveItem = async () => {
   // 基本驗證
   if (isBundleMode.value && !bundleForm.value.name)
-    return alert("請輸入組合包名稱");
+    return snackbar.warning("請輸入組合包名稱");
   if (!isBundleMode.value && !eventPriceForm.value.product_id)
-    return alert("請選擇商品");
+    return snackbar.warning("請選擇商品");
   if (isEdit.value && !currentDetailId.value)
-    return alert("找不到編輯對象，請重新開啟視窗");
+    return snackbar.warning("找不到編輯對象，請重新開啟視窗");
 
   loading.value = true;
   try {
@@ -881,10 +877,10 @@ const saveItem = async () => {
 
     addDialog.value = false;
     await fetchAllData();
-    alert(isEdit.value ? "修改成功" : "上架成功");
-  } catch (err) {
+    snackbar.success(isEdit.value ? "修改成功" : "上架成功");
+  } catch (err: any) {
     console.error("Save Error:", err);
-    alert("儲存失敗：" + (err.message || "未知錯誤"));
+    snackbar.error("儲存失敗：" + (err.message || "未知錯誤"));
   } finally {
     loading.value = false;
   }
@@ -905,7 +901,15 @@ const removeProduct = async (detailId: number) => {
     ? `確定要下架組合包「${targetDetail.bundle?.name}」嗎？\n這將會同步刪除該組合的定義與配方。`
     : `確定要下架商品「${targetDetail.product?.name}」嗎？`;
 
-  if (!confirm(message)) return;
+  if (
+    !(await confirm({
+      title: "確認下架",
+      message,
+      confirmText: "下架",
+      confirmColor: "error",
+    }))
+  )
+    return;
 
   loading.value = true;
   try {
@@ -917,7 +921,7 @@ const removeProduct = async (detailId: number) => {
 
     if (salesError) throw salesError;
     if (count && count > 0) {
-      alert(`無法下架：此項目已有 ${count} 筆銷售紀錄，無法刪除。`);
+      snackbar.error(`無法下架：此項目已有 ${count} 筆銷售紀錄，無法刪除。`);
       return;
     }
 
@@ -956,9 +960,9 @@ const removeProduct = async (detailId: number) => {
     }
 
     await fetchAllData();
-    alert("已成功下架項目");
+    snackbar.success("已成功下架項目");
   } catch (err: any) {
-    alert("操作失敗: " + err.message);
+    snackbar.error("操作失敗: " + err.message);
   } finally {
     loading.value = false;
   }

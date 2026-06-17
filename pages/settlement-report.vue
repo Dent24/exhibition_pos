@@ -279,9 +279,11 @@
 <script setup lang="ts">
 import { useDisplay } from "vuetify";
 
-const supabase = useSupabaseClient();
+const supabase = useDb();
 const userStore = useMainStore();
 const { smAndDown: mobile } = useDisplay();
+const snackbar = useSnackbar();
+const { confirm } = useConfirm();
 
 useHead({ title: "賣家拆賬" });
 
@@ -447,7 +449,15 @@ const markAsPaid = async (
   _boothId: number,
   _sellerId: number
 ) => {
-  if (!confirm("確定標記此項目為已付款？此動作無法復原。")) return;
+  if (
+    !(await confirm({
+      title: "標記已付款",
+      message: "確定標記此項目為已付款？此動作無法復原。",
+      confirmText: "標記已付",
+      confirmColor: "success",
+    }))
+  )
+    return;
   markingPaid.value = detailId;
   try {
     const { error } = await supabase
@@ -456,8 +466,9 @@ const markAsPaid = async (
       .eq("id", detailId);
     if (error) throw error;
     await fetchSettlementReport();
+    snackbar.success("已標記為已付款");
   } catch (err: any) {
-    alert("操作失敗：" + err.message);
+    snackbar.error("操作失敗：" + err.message);
   } finally {
     markingPaid.value = null;
   }

@@ -293,7 +293,7 @@ useHead({
   title: "系統首頁",
 });
 
-const supabase = useSupabaseClient();
+const supabase = useDb();
 const mainStore = useMainStore();
 const router = useRouter();
 
@@ -328,17 +328,7 @@ const fetchCurrentExhibition = async () => {
   };
 };
 
-const formatDate = (dateStr: string | null) => {
-  if (!dateStr) return "";
-  const date = new Date(dateStr);
-  return date
-    .toLocaleDateString("zh-TW", {
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    })
-    .replace(/-/g, "/"); // 確保輸出為 YYYY/MM/DD
-};
+// formatDate 已抽至 utils/format.ts（Nuxt 自動 import）
 
 const getFormattedToday = () => {
   const now = new Date();

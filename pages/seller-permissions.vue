@@ -265,9 +265,10 @@ useHead({
 
 import { useDisplay } from "vuetify";
 
-const supabase = useSupabaseClient();
+const supabase = useDb();
 const userStore = useMainStore();
 const { smAndDown: mobile } = useDisplay();
+const snackbar = useSnackbar();
 
 const permissionHeaders: ReadonlyArray<{
   title: string;
@@ -323,7 +324,7 @@ const fetchPermissions = async () => {
       })),
     }));
   } catch (err: any) {
-    alert("讀取授權資料失敗: " + err.message);
+    snackbar.error("讀取授權資料失敗: " + err.message);
   } finally {
     loading.value = false;
   }
@@ -340,7 +341,7 @@ const togglePermission = async (permission: Permission) => {
   if (!error) {
     permission.enable = newStatus; // 成功後直接更新本地狀態，不需重新 fetch
   } else {
-    alert("更新失敗: " + error.message);
+    snackbar.error("更新失敗: " + error.message);
   }
 };
 
@@ -421,7 +422,7 @@ const addPermission = async (ownerId: number) => {
       });
     }
   } catch (err: any) {
-    alert("新增授權失敗: " + err.message);
+    snackbar.error("新增授權失敗: " + err.message);
   } finally {
     addLoading.value = false;
   }

@@ -28,7 +28,7 @@ export const useMainStore = defineStore('main', {
 
     // 從資料庫同步最新的使用者資料
     async fetchProfile() {
-      const supabase = useSupabaseClient()
+      const supabase = useDb()
       const { data: { session } } = await supabase.auth.getSession();
 
       this.loading = true
@@ -57,7 +57,7 @@ export const useMainStore = defineStore('main', {
   },
 
   persist: {
-    key: 'pos-user-store', // 自定義儲存的 Key 名稱
+    key: USER_STORE_KEY, // 自定義儲存的 Key 名稱（見 utils/constants.ts）
     storage: persistedState.localStorage, // 儲存在 localStorage
     paths: ['profile'] // 只持久化 profile，loading 不需要存
   }

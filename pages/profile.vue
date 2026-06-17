@@ -148,7 +148,7 @@ useHead({
 });
 
 const { smAndDown: mobile } = useDisplay();
-const supabase = useSupabaseClient();
+const supabase = useDb();
 const user = useSupabaseUser();
 const mainStore = useMainStore();
 

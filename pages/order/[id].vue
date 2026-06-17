@@ -87,7 +87,7 @@
                 >交易時間</v-list-item-title
               >
               <v-list-item-subtitle class="text-body-1">
-                {{ formatDate(orderData?.created_at) }}
+                {{ formatDateTime(orderData?.created_at) }}
               </v-list-item-subtitle>
             </v-list-item>
 
@@ -132,7 +132,7 @@
 
 <script setup lang="ts">
 const route = useRoute();
-const supabase = useSupabaseClient();
+const supabase = useDb();
 
 definePageMeta({
   layout: "clear",
@@ -141,8 +141,6 @@ definePageMeta({
 useHead({
   title: "訂單明細",
 });
-
-const ANONYMOUS_PHONE = "0900000000";
 
 const loading = ref(false);
 const isVerified = ref(false);
@@ -210,15 +208,6 @@ onMounted(async () => {
   await loadOrder(anonymousLastThree);
 });
 
-const formatDate = (dateStr: string) => {
-  if (!dateStr) return "";
-  return new Date(dateStr).toLocaleString("zh-TW", {
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-};
 </script>
 
 <style scoped>

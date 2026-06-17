@@ -94,6 +94,8 @@
     <v-main class="fill-height" style="min-height: 100vh">
       <NuxtPage />
     </v-main>
+
+    <AppUi />
   </v-layout>
 </template>
 

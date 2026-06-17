@@ -7,6 +7,7 @@
     "dev": "nuxt dev",
     "generate": "nuxt generate",
     "preview": "nuxt preview",
+    "db:types": "npx --yes supabase gen types typescript --project-id blzznhfolureebeyzzcg > types/database.ts",
     "postinstall": "nuxt prepare",
     "deploy": "npx nuxi generate && npx gh-pages -d .output/public"
   },
