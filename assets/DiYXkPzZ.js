@@ -1,0 +1,1 @@
+const n=t=>{if(!t)return"editable";const e=new Date;e.setHours(0,0,0,0);const s=new Date(t);return s.setHours(0,0,0,0),e>=s?"locked":"editable"},o=t=>{if(!t)return!1;const e=new Date;e.setHours(0,0,0,0);const s=new Date(t);return s.setHours(0,0,0,0),e>s};export{n as g,o as i};
